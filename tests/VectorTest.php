@@ -12,6 +12,7 @@ use PrestoUniverse\PrestoPay\Signer;
 use PrestoUniverse\PrestoPay\Timestamp;
 use PrestoUniverse\PrestoPay\Verifier;
 use PrestoUniverse\PrestoPay\Internal\JsonCodec;
+use PrestoUniverse\PrestoPay\Request\RefundRequest;
 
 final class VectorTest extends TestCase
 {
@@ -54,6 +55,16 @@ final class VectorTest extends TestCase
         }
         foreach ($vectors['parse'] as $case) {
             $this->expectTimestampReject($case['ts']);
+        }
+    }
+
+    public function testRefundPolicyVectors(): void
+    {
+        $vectors = json_decode((string) file_get_contents(__DIR__ . '/../spec/vectors/refund-policy.json'), true, 512, JSON_THROW_ON_ERROR);
+        foreach ($vectors['cases'] as $case) {
+            self::assertTrue($case['requestable'], $case['paymentMethod']);
+            $request = new RefundRequest('mrn-1', 'payment-1', 'refund-1', 'Customer request');
+            self::assertArrayNotHasKey('paymentMethod', $request->toWire(), $case['paymentMethod']);
         }
     }
 
