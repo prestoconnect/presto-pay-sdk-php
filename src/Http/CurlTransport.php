@@ -37,7 +37,7 @@ final class CurlTransport implements HttpTransport
             $notSent = in_array($code, [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_RESOLVE_PROXY, CURLE_COULDNT_CONNECT], true);
             throw new HttpFailure('HTTP transport failed: ' . $message, $notSent);
         }
-        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         return new HttpResponse($status, $headers, is_string($response) ? $response : '');
     }
 }

@@ -67,7 +67,7 @@ final class PrestoPay
     /** @param array<string, mixed> $fields */
     public function post(string $operation, string $path, array $fields, ?string $reconcileBy = null): \stdClass
     {
-        if (!preg_match('#^/v1/ext/[A-Za-z0-9/_-]+$#D', $path)) {
+        if (preg_match('#^/v1/ext/[A-Za-z0-9/_-]+$#D', $path) !== 1) {
             throw new ConfigException('Invalid gateway path');
         }
         $write = $operation !== 'query';
