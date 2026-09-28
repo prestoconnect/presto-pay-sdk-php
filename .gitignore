@@ -1,0 +1,12 @@
+/vendor/
+/.phpunit.cache/
+/.phpunit.result.cache
+/.phpunit-watcher.yml
+/.phpunit-watcher.yml
+.env
+*.p12
+*.pfx
+*.key
+*.pem
+!/spec/keys/*.pem
+!/tests/fixtures/*.pem
