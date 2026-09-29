@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PrestoUniverse\PrestoPay\Http;
 
+use PrestoUniverse\PrestoPay\Internal\SdkVersion;
+
 final class CurlTransport implements HttpTransport
 {
     /**
@@ -37,7 +39,7 @@ final class CurlTransport implements HttpTransport
         curl_setopt_array($handle, [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $body,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json; charset=UTF-8', 'User-Agent: presto-pay-sdk-php/0.1.0'],
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json; charset=UTF-8', 'User-Agent: presto-pay-sdk-php/' . SdkVersion::CURRENT],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_TIMEOUT_MS => max(1, (int) ceil($timeoutSeconds * 1000)),

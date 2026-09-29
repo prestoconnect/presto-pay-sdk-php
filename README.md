@@ -1,5 +1,6 @@
 # Presto Pay SDK for PHP
 
+[![CI](https://github.com/prestoconnect/presto-pay-sdk-php/actions/workflows/ci.yml/badge.svg)](https://github.com/prestoconnect/presto-pay-sdk-php/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 Standalone, framework-agnostic PHP 8.2+ library for the **Presto Connect** payment gateway. It handles the
@@ -231,13 +232,8 @@ See [sample/README.md](sample/README.md) for details on all three.
 
 ## Contributing
 
-```bash
-composer install
-composer check   # phpunit + phpstan (max, strict rules) + php-cs-fixer
-```
-
-For an opt-in staging query smoke test, set `PRESTOPAY_STAGING_SMOKE=1` plus the credentials above,
-`PRESTOPAY_MRN`, and `PRESTOPAY_STAGING_PAYMENT_REF_NUM`, then run `composer test`.
+Building, testing, code style, and the release process live in [CONTRIBUTING.md](CONTRIBUTING.md). Report
+security issues per [SECURITY.md](SECURITY.md) rather than opening a public issue.
 
 The `spec/` directory is a checked-in snapshot of the shared wire contract and test vectors. Its source commit
 is recorded in [`spec/.source-commit`](spec/.source-commit). No real merchant or staging credentials belong in

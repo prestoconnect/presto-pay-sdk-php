@@ -13,12 +13,13 @@ use PrestoUniverse\PrestoPay\Http\CurlTransport;
 use PrestoUniverse\PrestoPay\Http\HttpFailure;
 use PrestoUniverse\PrestoPay\Http\HttpTransport;
 use PrestoUniverse\PrestoPay\Internal\JsonCodec;
+use PrestoUniverse\PrestoPay\Internal\SdkVersion;
 use PrestoUniverse\PrestoPay\Key\PrivateKey;
 use PrestoUniverse\PrestoPay\Key\PublicKey;
 
 final class PrestoPay
 {
-    public const VERSION = '0.1.0-dev';
+    public const VERSION = SdkVersion::CURRENT;
 
     private readonly string $baseUrl;
     private readonly HttpTransport $transport;

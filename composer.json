@@ -3,6 +3,15 @@
   "description": "Presto Pay merchant SDK for PHP",
   "type": "library",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/prestoconnect/presto-pay-sdk-php",
+  "keywords": ["presto", "presto-pay", "payments", "payment-gateway"],
+  "authors": [
+    {"name": "Presto Universe", "homepage": "https://github.com/prestoconnect"}
+  ],
+  "support": {
+    "issues": "https://github.com/prestoconnect/presto-pay-sdk-php/issues",
+    "source": "https://github.com/prestoconnect/presto-pay-sdk-php"
+  },
   "require": {
     "php": "^8.2",
     "ext-curl": "*",

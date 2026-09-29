@@ -28,9 +28,11 @@ use PrestoUniverse\PrestoPay\TxnType;
 use PrestoUniverse\PrestoPay\Webhook\NotifyAck;
 
 // Let the built-in server serve a real static file (e.g. /js/checkout.js) directly instead of routing it.
+// realpath()'s containment check stops a crafted "../" request URI from resolving to a file outside public/.
 if (PHP_SAPI === 'cli-server') {
     $requestedFile = __DIR__ . rawurldecode((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-    if ($_SERVER['REQUEST_URI'] !== '/' && is_file($requestedFile)) {
+    $resolved = realpath($requestedFile);
+    if ($_SERVER['REQUEST_URI'] !== '/' && $resolved !== false && str_starts_with($resolved, __DIR__ . DIRECTORY_SEPARATOR) && is_file($resolved)) {
         return false;
     }
 }

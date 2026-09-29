@@ -17,3 +17,8 @@
   (`requestNotSent`), matching the Go SDK and the documented retry policy; previously a write was never retried
   even in that safe case.
 - Added `PaymentStatus::PENDING_REVERSE` and `PENDING_REFUND`.
+- `sample/laravel-store/` and `sample/symfony-store/` — the same checkout app rebuilt in Laravel 13 and
+  Symfony 7.4, each linking the SDK via a Composer path repository.
+- Fixed: the `User-Agent` header sent a hardcoded `0.1.0` independent of `PrestoPay::VERSION`. Both now come
+  from a single `Internal\SdkVersion::CURRENT` constant.
+- Added `homepage`, `authors` and `support` to `composer.json`, and `SECURITY.md` / `CONTRIBUTING.md`.
