@@ -11,7 +11,9 @@ final class PaymentStatus
     public const FAILED = 'Failed';
     public const CANCELLED = 'Cancelled';
     public const EXPIRED = 'Expired';
+    public const PENDING_REVERSE = 'PendingReverse';
     public const REVERSED = 'Reversed';
+    public const PENDING_REFUND = 'PendingRefund';
     public const REFUNDED = 'Refunded';
     public const PARTIAL_REFUNDED = 'PartialRefunded';
 

@@ -22,7 +22,10 @@
     "psr-4": {"PrestoUniverse\\PrestoPay\\": "src/"}
   },
   "autoload-dev": {
-    "psr-4": {"PrestoUniverse\\PrestoPay\\Tests\\": "tests/"}
+    "psr-4": {
+      "PrestoUniverse\\PrestoPay\\Tests\\": "tests/",
+      "PrestoUniverse\\PrestoPay\\Sample\\MyStore\\": "sample/my-store/src/"
+    }
   },
   "scripts": {
     "test": "phpunit",

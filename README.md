@@ -88,6 +88,15 @@ echo $ack->body();
 
 See [webhook handling](docs/webhooks.md) and [production setup](docs/production.md).
 
+## Samples
+
+- [sample/my-store/](sample/my-store/) — a runnable **MyStore**-branded checkout page against Presto staging,
+  served by PHP's built-in web server with no framework and no dependencies beyond the SDK. A toggle switches
+  between the Presto-hosted and self-hosted ways to pick a payment method; a return page and a webhook handler
+  with a "recent webhooks" list round it out.
+
+See [sample/README.md](sample/README.md) for details.
+
 ## Development
 
 ```bash

@@ -1,0 +1,133 @@
+<?php
+/**
+ * @var list<array{code: string, name: string, icon: string}> $paymentMethods
+ * @var string $defaultSelectedMethod
+ * @var list<array<string, mixed>> $recentWebhooks
+ */
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>MyStore</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+</head>
+<body class="min-h-screen bg-slate-100 font-sans text-slate-900">
+<div class="mx-auto max-w-md px-4 py-8">
+
+  <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <header class="flex items-center gap-2 bg-slate-900 px-6 py-4 text-lg font-bold text-white">
+      <i class="fa-solid fa-store" aria-hidden="true"></i>
+      <span>MyStore</span>
+    </header>
+
+    <div class="p-6">
+      <div id="checkoutAlert" class="mb-5 hidden rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+        <strong>Could not start payment</strong>
+        <p id="checkoutAlertMessage" class="mt-1 text-sm"></p>
+      </div>
+
+      <form id="checkoutForm">
+        <label class="mb-5 flex cursor-pointer items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <span>
+            <strong class="block text-sm text-slate-900">Show payment methods on checkout</strong>
+            <span class="mt-0.5 block text-xs text-amber-800" id="toggleDesc">Off: shopper selects after redirect, on the Presto payment page</span>
+          </span>
+          <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+            <input type="checkbox" id="showPaymentMethods" class="peer sr-only"/>
+            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-indigo-600"></span>
+            <span class="relative h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" aria-hidden="true"></span>
+          </span>
+        </label>
+
+        <h1 class="text-xl font-bold">Checkout</h1>
+        <p class="mb-4 text-sm text-slate-500" id="checkoutHint">Enter the amount and description. You will choose how to pay on the next page.</p>
+
+        <div class="mb-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="amountInRinggit" class="mb-1 block text-xs font-medium text-slate-500">Amount (MYR)</label>
+            <div class="flex items-center overflow-hidden rounded-lg border border-slate-300 focus-within:ring-2 focus-within:ring-indigo-100">
+              <span class="border-r border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">RM</span>
+              <input id="amountInRinggit" type="number" step="0.01" min="0.01" value="10.00"
+                     class="w-full border-0 px-3 py-2 text-sm focus:outline-none focus:ring-0"/>
+            </div>
+            <div id="amountInRinggitError" class="mt-1 hidden text-xs text-red-600"></div>
+          </div>
+          <div>
+            <label for="displayDesc" class="mb-1 block text-xs font-medium text-slate-500">Description</label>
+            <input id="displayDesc" type="text" maxlength="200" value="Checkout demo" placeholder="What is this payment for?"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"/>
+            <div id="displayDescError" class="mt-1 hidden text-xs text-red-600"></div>
+          </div>
+        </div>
+
+        <div id="methodSection" class="mt-5 hidden border-t border-slate-200 pt-5">
+          <fieldset class="mb-4">
+            <legend class="mb-3 text-sm font-semibold">Choose payment method</legend>
+            <div id="selectedPaymentMethodError" class="mb-2 hidden text-xs text-red-600"></div>
+            <div class="flex flex-col gap-2.5">
+              <?php foreach ($paymentMethods as $paymentMethod): ?>
+              <label class="method-row flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 bg-white p-3 transition-colors hover:border-slate-400 has-[input:checked]:border-indigo-600 has-[input:checked]:bg-indigo-50 has-[input:checked]:ring-1 has-[input:checked]:ring-indigo-600">
+                <input type="radio" name="selectedPaymentMethod" value="<?= htmlspecialchars($paymentMethod['code']) ?>"
+                       class="order-2 ml-auto h-[18px] w-[18px] shrink-0 accent-indigo-600"
+                       <?= $paymentMethod['code'] === $defaultSelectedMethod ? 'checked' : '' ?>/>
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-600">
+                  <i class="fa-solid <?= htmlspecialchars($paymentMethod['icon']) ?>" aria-hidden="true"></i>
+                </span>
+                <span class="min-w-0 flex-1 text-sm font-semibold"><?= htmlspecialchars($paymentMethod['name']) ?></span>
+              </label>
+              <?php endforeach; ?>
+            </div>
+          </fieldset>
+        </div>
+
+        <button type="submit" id="submitButton"
+                class="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-60">
+          <i class="fa-solid fa-lock" aria-hidden="true"></i>
+          <span id="submitButtonLabel">Continue to Payment</span>
+        </button>
+        <p class="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-slate-500">
+          <i class="fa-solid fa-lock" aria-hidden="true"></i>
+          <span id="checkoutFootnote">Secure and encrypted</span>
+        </p>
+      </form>
+    </div>
+  </section>
+
+  <?php if ($recentWebhooks !== []): ?>
+  <section class="mt-6">
+    <h3 class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Recent webhooks (shared)</h3>
+    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <table class="w-full text-xs">
+        <thead>
+        <tr class="bg-slate-50 text-slate-500">
+          <th class="px-3 py-2 text-left font-medium">Time</th>
+          <th class="px-3 py-2 text-left font-medium">Event</th>
+          <th class="px-3 py-2 text-left font-medium">Status</th>
+          <th class="px-3 py-2 text-left font-medium">Txn ref</th>
+          <th class="px-3 py-2 text-left font-medium">success</th>
+        </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($recentWebhooks as $webhook): ?>
+        <tr class="border-t border-slate-200">
+          <td class="px-3 py-2"><?= htmlspecialchars(substr((string) $webhook['receivedAt'], 11, 8)) ?></td>
+          <td class="px-3 py-2"><?= htmlspecialchars((string) $webhook['eventCode']) ?></td>
+          <td class="px-3 py-2"><?= htmlspecialchars((string) $webhook['paymentStatus']) ?></td>
+          <td class="px-3 py-2"><?= htmlspecialchars((string) $webhook['txnRefNum']) ?></td>
+          <td class="px-3 py-2<?= $webhook['eventCode'] === 'Authorised' ? ' font-semibold text-green-600' : '' ?>">
+            <?= $webhook['success'] ? 'true' : 'false' ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <?php endif; ?>
+</div>
+<script src="/js/checkout.js"></script>
+</body>
+</html>

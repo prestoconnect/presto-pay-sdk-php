@@ -1,0 +1,6 @@
+/.env
+/var/*.json
+/keys/*.pem
+/keys/*.der
+/keys/*.p12
+/keys/*.pfx
