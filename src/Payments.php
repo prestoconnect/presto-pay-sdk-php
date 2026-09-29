@@ -7,12 +7,12 @@ namespace PrestoUniverse\PrestoPay;
 use PrestoUniverse\PrestoPay\Exception\ResponseException;
 use PrestoUniverse\PrestoPay\Request\InitRequest;
 use PrestoUniverse\PrestoPay\Request\QueryRequest;
-use PrestoUniverse\PrestoPay\Request\ReverseRequest;
 use PrestoUniverse\PrestoPay\Request\RefundRequest;
+use PrestoUniverse\PrestoPay\Request\ReverseRequest;
 use PrestoUniverse\PrestoPay\Result\InitResult;
 use PrestoUniverse\PrestoPay\Result\QueryResult;
-use PrestoUniverse\PrestoPay\Result\ReverseResult;
 use PrestoUniverse\PrestoPay\Result\RefundResult;
+use PrestoUniverse\PrestoPay\Result\ReverseResult;
 
 final readonly class Payments
 {

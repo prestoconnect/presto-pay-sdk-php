@@ -7,12 +7,13 @@ namespace PrestoUniverse\PrestoPay\Tests;
 use PHPUnit\Framework\TestCase;
 use PrestoUniverse\PrestoPay\Canonicalizer;
 use PrestoUniverse\PrestoPay\Environment;
-use PrestoUniverse\PrestoPay\Exception\SignatureException;
 use PrestoUniverse\PrestoPay\Exception\ApiException;
+use PrestoUniverse\PrestoPay\Exception\SignatureException;
 use PrestoUniverse\PrestoPay\Exception\TransportException;
 use PrestoUniverse\PrestoPay\Http\HttpFailure;
 use PrestoUniverse\PrestoPay\Http\HttpResponse;
 use PrestoUniverse\PrestoPay\Http\HttpTransport;
+use PrestoUniverse\PrestoPay\Internal\JsonCodec;
 use PrestoUniverse\PrestoPay\Key\PrivateKey;
 use PrestoUniverse\PrestoPay\Key\PublicKey;
 use PrestoUniverse\PrestoPay\PrestoPay;
@@ -23,7 +24,6 @@ use PrestoUniverse\PrestoPay\Signer;
 use PrestoUniverse\PrestoPay\Timestamp;
 use PrestoUniverse\PrestoPay\TxnType;
 use PrestoUniverse\PrestoPay\Verifier;
-use PrestoUniverse\PrestoPay\Internal\JsonCodec;
 
 final class PaymentsTest extends TestCase
 {

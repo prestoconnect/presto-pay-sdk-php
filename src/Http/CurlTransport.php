@@ -6,6 +6,27 @@ namespace PrestoUniverse\PrestoPay\Http;
 
 final class CurlTransport implements HttpTransport
 {
+    /**
+     * cURL error codes that can only occur before any request byte reaches
+     * the wire: DNS resolution, TCP connect, and the TLS handshake all fail
+     * before HTTP transmission starts. 51 is CURLE_PEER_FAILED_VERIFICATION,
+     * which PHP does not expose as a named constant.
+     *
+     * @var list<int>
+     */
+    private const REQUEST_NOT_SENT_ERRORS = [
+        CURLE_COULDNT_RESOLVE_PROXY,
+        CURLE_COULDNT_RESOLVE_HOST,
+        CURLE_COULDNT_CONNECT,
+        CURLE_SSL_CONNECT_ERROR,
+        CURLE_SSL_CERTPROBLEM,
+        CURLE_SSL_CIPHER,
+        CURLE_SSL_CACERT,
+        51,
+        CURLE_SSL_CACERT_BADFILE,
+        CURLE_SSL_PINNEDPUBKEYNOTMATCH,
+    ];
+
     public function post(string $url, string $body, float $timeoutSeconds): HttpResponse
     {
         $handle = curl_init($url);
@@ -33,8 +54,7 @@ final class CurlTransport implements HttpTransport
         if ($response === false) {
             $code = curl_errno($handle);
             $message = curl_error($handle);
-            // These errors occur before a connection can carry request bytes.
-            $notSent = in_array($code, [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_RESOLVE_PROXY, CURLE_COULDNT_CONNECT], true);
+            $notSent = in_array($code, self::REQUEST_NOT_SENT_ERRORS, true);
             throw new HttpFailure('HTTP transport failed: ' . $message, $notSent);
         }
         $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);

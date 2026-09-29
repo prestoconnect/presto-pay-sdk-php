@@ -3,6 +3,7 @@
 /.phpunit.result.cache
 /.phpunit-watcher.yml
 /.phpunit-watcher.yml
+/.php-cs-fixer.cache
 .env
 *.p12
 *.pfx

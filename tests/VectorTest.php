@@ -6,13 +6,13 @@ namespace PrestoUniverse\PrestoPay\Tests;
 
 use PHPUnit\Framework\TestCase;
 use PrestoUniverse\PrestoPay\Canonicalizer;
+use PrestoUniverse\PrestoPay\Internal\JsonCodec;
 use PrestoUniverse\PrestoPay\Key\PrivateKey;
 use PrestoUniverse\PrestoPay\Key\PublicKey;
+use PrestoUniverse\PrestoPay\Request\RefundRequest;
 use PrestoUniverse\PrestoPay\Signer;
 use PrestoUniverse\PrestoPay\Timestamp;
 use PrestoUniverse\PrestoPay\Verifier;
-use PrestoUniverse\PrestoPay\Internal\JsonCodec;
-use PrestoUniverse\PrestoPay\Request\RefundRequest;
 
 final class VectorTest extends TestCase
 {

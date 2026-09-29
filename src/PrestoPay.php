@@ -32,9 +32,12 @@ final class PrestoPay
         ?HttpTransport $transport = null,
         private readonly float $deadline = 30.0,
         private readonly int $retryReads = 2,
+        private readonly float $initialBackoff = 0.2,
+        private readonly float $maxBackoff = 2.0,
     ) {
-        if (PHP_INT_SIZE < 8 || $merchantId === '' || $prestoPublicKeys === [] || $deadline <= 0 || $retryReads < 0) {
-            throw new ConfigException('Invalid merchant ID, public keys, deadline or PHP integer width');
+        if (PHP_INT_SIZE < 8 || $merchantId === '' || $prestoPublicKeys === [] || $deadline <= 0 || $retryReads < 0
+            || $initialBackoff < 0 || $maxBackoff < $initialBackoff) {
+            throw new ConfigException('Invalid merchant ID, public keys, deadline, retry or PHP integer width');
         }
         $base = $environment instanceof Environment ? $environment->value : $environment;
         if (parse_url($base, PHP_URL_SCHEME) !== 'https' || parse_url($base, PHP_URL_HOST) === null) {
@@ -85,13 +88,13 @@ final class PrestoPay
                 $response = $this->transport->post($this->baseUrl . $path, JsonCodec::encode($body), $remaining);
             } catch (HttpFailure $error) {
                 if (!$write && $attempt < $this->retryReads) {
-                    $this->backoff($attempt, $started);
+                    $this->backoff($attempt, $started, null);
                     continue;
                 }
                 throw new TransportException('Gateway transport failed', $operation, $write && !$error->requestNotSent, $reconcileBy, $error->requestNotSent, $error);
             }
             if (!$write && $response->status >= 500 && $attempt < $this->retryReads) {
-                $this->backoff($attempt, $started);
+                $this->backoff($attempt, $started, $response->header('retry-after'));
                 continue;
             }
             if ($response->status !== 200) {
@@ -131,13 +134,40 @@ final class PrestoPay
         }
     }
 
-    private function backoff(int $attempt, float $started): void
+    private function backoff(int $attempt, float $started, ?string $retryAfter): void
     {
-        $seconds = min(0.2 * (2 ** $attempt), 2.0);
         $remaining = $this->deadline - (microtime(true) - $started);
-        if ($remaining > $seconds) {
-            usleep((int) ($seconds * random_int(0, 1000) * 1000));
+        if ($remaining <= 0) {
+            return;
         }
+        $afterSeconds = self::parseRetryAfter($retryAfter);
+        if ($afterSeconds !== null) {
+            $seconds = min($afterSeconds, $remaining);
+        } elseif ($this->initialBackoff <= 0) {
+            $seconds = 0.0;
+        } else {
+            $cap = min($this->initialBackoff * (2 ** min($attempt, 20)), $this->maxBackoff);
+            $seconds = min(random_int(0, (int) ($cap * 1000)) / 1000, $remaining);
+        }
+        if ($seconds > 0) {
+            usleep((int) ($seconds * 1_000_000));
+        }
+    }
+
+    private static function parseRetryAfter(?string $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (preg_match('/^\d+$/D', $value) === 1) {
+            return (float) $value;
+        }
+        $timestamp = strtotime($value);
+        if ($timestamp === false) {
+            return null;
+        }
+        $delta = $timestamp - time();
+        return $delta > 0 ? (float) $delta : null;
     }
 
     public function __debugInfo(): array { return ['merchantId' => $this->merchantId, 'baseUrl' => $this->baseUrl, 'privateKey' => '[redacted]']; }
