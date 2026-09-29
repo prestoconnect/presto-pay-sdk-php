@@ -45,35 +45,24 @@ Also exposed, for `curl` and matching the Go SDK's sample: `GET /payments/{payme
 ### Source layout
 
 ```
-sample/my-store/
-├── public/
-│   ├── index.php        Front controller: routes, validation, the four payment endpoints, webhook handler
-│   └── js/checkout.js    Toggle behaviour and the JSON POST /checkout submit flow
-├── src/
-│   ├── AppConfig.php     .env loading, PrestoPay + WebhookVerifier construction
-│   ├── ActivityStore.php Recent-checkouts / recent-webhooks storage (file-backed — see below)
-│   └── Money.php         Ringgit ↔ sen conversion, demo txnRefNum generation
-└── templates/
-    ├── index.php          Checkout page
-    └── return.php         Payment result page
+public/
+├── index.php         Front controller: routes, validation, the four payment endpoints, webhook handler
+└── js/checkout.js    Toggle behaviour and the JSON POST /checkout submit flow
+src/
+├── AppConfig.php      .env loading, PrestoPay + WebhookVerifier construction
+├── ActivityStore.php  Recent checkouts / recent webhooks, kept in a JSON file under var/ rather than an
+│                      in-process map — a PHP request does not share memory with the next one, unlike the
+│                      Go and Java samples' long-lived server process
+└── Money.php          Ringgit ↔ sen conversion, demo txnRefNum generation
+templates/
+├── index.php    Checkout page
+└── return.php   Payment result page
 ```
-
-### Why a file, not an in-memory store
-
-The Go and Java samples keep recent activity in an in-process map: their server is one long-lived process, so
-that state survives between requests. PHP does not work that way — the built-in server (like any other SAPI)
-tears down all script-level state at the end of every request, so nothing declared in `index.php` or `AppConfig`
-is still there on the next one. `ActivityStore` keeps the same "recent checkouts, recent webhooks, dedupe by
-`eventRefNum`" behaviour by reading and writing a small JSON file under `var/` instead, with `flock()` guarding
-concurrent requests. A real merchant would use its database's own tables and a unique constraint on
-`eventRefNum` — see [`../docs/webhooks.md`](../docs/webhooks.md) — not a file; this is a demo-sized stand-in for
-the same shape of state.
 
 ### Requirements
 
 - **PHP 8.2+** (aligned with `presto-pay-sdk`), with `ext-curl`, `ext-json`, `ext-openssl`
-- `composer install` run once at the repository root (this sample loads the SDK's own `vendor/autoload.php`
-  and is autoloaded via the root `composer.json`'s `autoload-dev`)
+- `composer install` at the repo root to build the SDK this sample depends on
 
 ### Run
 
