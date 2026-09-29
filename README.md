@@ -1,5 +1,6 @@
 # Presto Pay SDK for PHP
 
+[![Packagist](https://img.shields.io/packagist/v/prestouniverse/presto-pay-sdk.svg)](https://packagist.org/packages/prestouniverse/presto-pay-sdk)
 [![CI](https://github.com/prestoconnect/presto-pay-sdk-php/actions/workflows/ci.yml/badge.svg)](https://github.com/prestoconnect/presto-pay-sdk-php/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -11,9 +12,6 @@ objects, RSA request signing, response and webhook signature verification, and P
 - Only `ext-curl`, `ext-json`, `ext-openssl`, and the PSR-18/17 HTTP interfaces (no concrete HTTP client
   dependency; bring your own, or use the bundled cURL transport)
 - Immutable, `readonly` request and result objects, and a `readonly` `PrestoPay` client — build once, reuse
-
-This repository is under implementation locally and has not been published to Packagist yet — see
-[Install](#install).
 
 ## Contents
 
@@ -31,8 +29,6 @@ This repository is under implementation locally and has not been published to Pa
 - [License](#license)
 
 ## Install
-
-The planned package name is `prestouniverse/presto-pay-sdk`. After publication:
 
 ```bash
 composer require prestouniverse/presto-pay-sdk

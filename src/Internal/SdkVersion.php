@@ -10,7 +10,7 @@ namespace PrestoUniverse\PrestoPay\Internal;
  */
 final class SdkVersion
 {
-    public const CURRENT = '0.1.0-dev';
+    public const CURRENT = '0.1.0';
 
     private function __construct() {}
 }
