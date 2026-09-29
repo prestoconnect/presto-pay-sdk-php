@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
+
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+# See also https://symfony.com/doc/current/service_container/import.html
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+parameters:
+    app.public_base_url: '%env(default:app.public_base_url_default:PUBLIC_URL)%'
+    app.public_base_url_default: 'http://localhost:8000'
+    env(PRESTOPAY_MRN): ''
+    env(PRESTOPAY_PRIVATE_KEY_PASSWORD): ''
+
+services:
+    # default configuration for services in *this* file
+    _defaults:
+        autowire: true      # Automatically injects dependencies in your services.
+        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+
+    # makes classes in src/ available to be used as services
+    # this creates a service per class whose id is the fully-qualified class name
+    App\:
+        resource: '../src/'
+
+    # add more service definitions when explicit configuration is needed
+    # please note that last definitions always *replace* previous ones
+    App\Service\PrestoPayFactory:
+        arguments:
+            $environment: '%env(string:PRESTOPAY_ENV)%'
+            $mid: '%env(string:PRESTOPAY_MID)%'
+            $mrn: '%env(string:PRESTOPAY_MRN)%'
+            $privateKeyFile: '%env(string:PRESTOPAY_PRIVATE_KEY_FILE)%'
+            $privateKeyPassword: '%env(string:PRESTOPAY_PRIVATE_KEY_PASSWORD)%'
+            $publicKeyFile: '%env(string:PRESTOPAY_PUBLIC_KEY_FILE)%'
+            $publicBaseUrl: '%app.public_base_url%'
+
+    PrestoUniverse\PrestoPay\PrestoPay:
+        factory: ['@App\Service\PrestoPayFactory', 'createClient']
+
+    PrestoUniverse\PrestoPay\Webhook\WebhookVerifier:
+        factory: ['@App\Service\PrestoPayFactory', 'createWebhookVerifier']

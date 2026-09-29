@@ -93,3 +93,66 @@ Each `init` sets `redirectUrl` to `{PUBLIC_URL}/return/{txnRefNum}`. The `/retur
 with `NotifyAck::Ok` for a verified event **and** for a permanent failure (bad signature, foreign `mid`, stale
 `ts`) — never `NotifyAck::Resend` for those, since Presto would just redeliver the same unfixable body four
 more times.
+
+## Laravel
+
+[`laravel-store/`](laravel-store/) — the same MyStore checkout, routes, and webhook handling as above, rebuilt
+as a Laravel 13 application: Blade views instead of plain PHP templates, a `PrestoPayServiceProvider` binding
+`PrestoPay` and `WebhookVerifier` as singletons from [`config/prestopay.php`](laravel-store/config/prestopay.php),
+and Laravel's own `Cache` facade (the `database` driver by default) standing in for `my-store/`'s JSON-file
+`ActivityStore` — a real store, not a demo-only stand-in, so this one needs no rationale comment.
+
+`/checkout`, `/payments/*/reverse` and `/payments/*/refund` are excluded from CSRF verification in
+[`bootstrap/app.php`](laravel-store/bootstrap/app.php) so they stay JSON endpoints the checkout page's `fetch()`
+call and `curl` can both hit directly, the same reason `/presto/notify` is excluded — Presto's servers cannot
+hold a Laravel session either. A production app would instead have its page read a CSRF meta tag and send it
+as a header on the `fetch()` call.
+
+```bash
+composer install   # repo root
+cd sample/laravel-store
+composer install
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite && php artisan migrate
+# then edit .env: PRESTOPAY_MID, PRESTOPAY_MRN, PRESTOPAY_PRIVATE_KEY_FILE, PRESTOPAY_PUBLIC_KEY_FILE, PUBLIC_URL
+php artisan serve
+```
+
+Open [http://localhost:8000](http://localhost:8000).
+
+## Symfony
+
+[`symfony-store/`](symfony-store/) — the same MyStore checkout, routes, and webhook handling again, rebuilt as
+a Symfony 7.4 application: Twig templates, attribute-based routing (`#[Route]`), a `PrestoPayFactory` service
+built from `%env(...)%`-bound constructor arguments in
+[`config/services.yaml`](symfony-store/config/services.yaml), and the `cache.app` pool (filesystem by default)
+standing in for `my-store/`'s JSON-file `ActivityStore`.
+
+Credentials go in `.env.local` (gitignored), not `.env` — the committed `.env` documents the variable names
+with empty defaults, matching how Symfony itself separates non-secret defaults from local overrides.
+
+```bash
+composer install   # repo root
+cd sample/symfony-store
+composer install
+cat > .env.local <<'EOF'
+APP_SECRET=change-me
+PUBLIC_URL=http://localhost:8000
+PRESTOPAY_MID=your-staging-merchant-id
+PRESTOPAY_MRN=your-staging-presto-mrn
+PRESTOPAY_PRIVATE_KEY_FILE=/absolute/path/to/merchant-private-key.pem
+PRESTOPAY_PUBLIC_KEY_FILE=/absolute/path/to/presto-public-key.der
+EOF
+php -S localhost:8000 -t public public/index.php
+```
+
+Open [http://localhost:8000](http://localhost:8000).
+
+## Shared UI
+
+All three samples serve the exact same [`checkout.js`](my-store/public/js/checkout.js) and the same
+Tailwind/Font Awesome markup — only the templating language and the file's own path comment differ. The JSON
+contract for `POST /checkout` (and the curl-friendly `/payments/*` routes) is identical across all three, so
+comparing any two side by side is really a comparison of how each framework wires config, routing, templating
+and shared storage around the same SDK calls.

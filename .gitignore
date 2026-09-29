@@ -11,3 +11,6 @@
 *.pem
 !/spec/keys/*.pem
 !/tests/fixtures/*.pem
+# Symfony's own convention commits non-secret defaults as .env; secrets go in .env.local instead
+# (already covered by symfony-store's own .gitignore). Contains no credentials -- see sample/README.md.
+!/sample/symfony-store/.env

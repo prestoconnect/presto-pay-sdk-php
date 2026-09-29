@@ -219,12 +219,15 @@ depending on types under `PrestoUniverse\PrestoPay\Internal` — they are not se
 
 ## Samples
 
-- [sample/my-store/](sample/my-store/) — a runnable **MyStore**-branded checkout page against Presto staging,
-  served by PHP's built-in web server with no framework and no dependencies beyond the SDK. A toggle switches
-  between the Presto-hosted and self-hosted ways to pick a payment method; a return page and a webhook handler
-  with a "recent webhooks" list round it out.
+The same **MyStore** checkout — a toggle between the Presto-hosted and self-hosted ways to pick a payment
+method, a return page, and webhook handling with a "recent webhooks" list — built three ways:
 
-See [sample/README.md](sample/README.md) for details.
+- [sample/my-store/](sample/my-store/) — PHP's built-in web server, no framework, no dependencies beyond the
+  SDK.
+- [sample/laravel-store/](sample/laravel-store/) — Laravel 13, Blade views, a service provider, `Cache` facade.
+- [sample/symfony-store/](sample/symfony-store/) — Symfony 7.4, Twig, attribute routing, the `cache.app` pool.
+
+See [sample/README.md](sample/README.md) for details on all three.
 
 ## Contributing
 

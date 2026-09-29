@@ -1,7 +1,8 @@
 /**
  * Checkout page behaviour: the "show payment methods" toggle and the JSON POST /checkout submit flow. The
- * payment method list itself is server-rendered (see templates/index.php), not built here. Identical to the
- * Laravel and Symfony samples' copy of this file -- the JSON contract is the same across all three.
+ * payment method list itself is server-rendered (see resources/views/checkout/index.blade.php), not built
+ * here. Identical to the plain-PHP and Symfony samples' copy of this file -- the JSON contract is the same
+ * across all three.
  */
 (function () {
   var HIDDEN_DESC = 'Off: shopper selects after redirect, on the Presto payment page';
