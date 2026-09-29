@@ -5,14 +5,11 @@
     "description": "Presto Pay SDK MyStore checkout sample, built with Laravel.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
-    "repositories": [
-        {"type": "path", "url": "../..", "options": {"symlink": true}}
-    ],
     "require": {
         "php": "^8.3",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
-        "prestouniverse/presto-pay-sdk": "*@dev"
+        "prestouniverse/presto-pay-sdk": "^0.1.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

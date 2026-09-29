@@ -4,15 +4,21 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8acc0d97e044d17678ee62e54d21fca7",
+    "content-hash": "063e70ec6e048cce7319a6ffcdfb1fbd",
     "packages": [
         {
             "name": "prestouniverse/presto-pay-sdk",
-            "version": "dev-main",
+            "version": "v0.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/prestoconnect/presto-pay-sdk-php.git",
+                "reference": "7f711594c5de84f18664e7f4bbc9f9d3ecc35967"
+            },
             "dist": {
-                "type": "path",
-                "url": "../..",
-                "reference": "de550cb588670b721d46adb136c1382837d21b57"
+                "type": "zip",
+                "url": "https://api.github.com/repos/prestoconnect/presto-pay-sdk-php/zipball/7f711594c5de84f18664e7f4bbc9f9d3ecc35967",
+                "reference": "7f711594c5de84f18664e7f4bbc9f9d3ecc35967",
+                "shasum": ""
             },
             "require": {
                 "ext-curl": "*",
@@ -35,28 +41,7 @@
                     "PrestoUniverse\\PrestoPay\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "PrestoUniverse\\PrestoPay\\Tests\\": "tests/",
-                    "PrestoUniverse\\PrestoPay\\Sample\\MyStore\\": "sample/my-store/src/"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "phpunit"
-                ],
-                "analyse": [
-                    "phpstan analyse --no-progress"
-                ],
-                "cs": [
-                    "php-cs-fixer fix --dry-run --diff"
-                ],
-                "check": [
-                    "@test",
-                    "@analyse",
-                    "@cs"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "Apache-2.0"
             ],
@@ -78,10 +63,7 @@
                 "issues": "https://github.com/prestoconnect/presto-pay-sdk-php/issues",
                 "source": "https://github.com/prestoconnect/presto-pay-sdk-php"
             },
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
+            "time": "2026-09-29T08:43:06+00:00"
         },
         {
             "name": "psr/cache",
@@ -3233,9 +3215,7 @@
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "prestouniverse/presto-pay-sdk": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

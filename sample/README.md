@@ -109,9 +109,8 @@ hold a Laravel session either. A production app would instead have its page read
 as a header on the `fetch()` call.
 
 ```bash
-composer install   # repo root
 cd sample/laravel-store
-composer install
+composer install   # pulls prestouniverse/presto-pay-sdk from Packagist, like any other dependency
 cp .env.example .env
 php artisan key:generate
 touch database/database.sqlite && php artisan migrate
@@ -133,9 +132,8 @@ Credentials go in `.env.local` (gitignored), not `.env` — the committed `.env`
 with empty defaults, matching how Symfony itself separates non-secret defaults from local overrides.
 
 ```bash
-composer install   # repo root
 cd sample/symfony-store
-composer install
+composer install   # pulls prestouniverse/presto-pay-sdk from Packagist, like any other dependency
 cat > .env.local <<'EOF'
 APP_SECRET=change-me
 PUBLIC_URL=http://localhost:8000

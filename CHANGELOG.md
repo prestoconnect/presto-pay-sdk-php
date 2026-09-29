@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `sample/laravel-store/` and `sample/symfony-store/` now require `prestouniverse/presto-pay-sdk` from
+  Packagist (`^0.1.0`) instead of linking this checkout via a Composer path repository.
+
 ## 0.1.0 - 2026-09-29
 
 - Initial PHP 8.2+ SDK implementation for payment init, query, reversal and refund requests.
