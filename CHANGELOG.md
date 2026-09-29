@@ -22,3 +22,9 @@
 - Fixed: the `User-Agent` header sent a hardcoded `0.1.0` independent of `PrestoPay::VERSION`. Both now come
   from a single `Internal\SdkVersion::CURRENT` constant.
 - Added `homepage`, `authors` and `support` to `composer.json`, and `SECURITY.md` / `CONTRIBUTING.md`.
+- Fixed: `PrestoPay::post()` compared a gateway error code against the literal `'1203'` instead of
+  `ErrorCode::DUPLICATE_TXN_REF_NUM`.
+- Fixed: the Symfony sample's webhook dedupe was a non-atomic check-then-set, so two concurrent deliveries of
+  the same `eventRefNum` could both run fulfilment logic; it now holds a `symfony/lock` for the check-and-set.
+- Fixed: the Laravel sample accepted `amountInRinggit` values below 0.01 past validation, surfacing the
+  SDK's rejection as a 502 instead of the intended 400 field error.

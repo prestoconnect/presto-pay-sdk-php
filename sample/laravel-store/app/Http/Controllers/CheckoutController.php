@@ -47,7 +47,7 @@ class CheckoutController extends Controller
         // none, and Laravel's automatic redirect-on-failure behaviour only kicks in when it does.
         $validator = Validator::make($request->all(), [
             'displayDesc' => ['required', 'string', 'max:200'],
-            'amountInRinggit' => ['required', 'regex:/^\d+(\.\d{1,2})?$/'],
+            'amountInRinggit' => ['required', 'regex:/^\d+(\.\d{1,2})?$/', 'numeric', 'min:0.01'],
             'showPaymentMethods' => ['sometimes', 'boolean'],
             'selectedPaymentMethod' => [
                 Rule::requiredIf((bool) $request->boolean('showPaymentMethods')),
@@ -56,6 +56,7 @@ class CheckoutController extends Controller
             ],
         ], [
             'amountInRinggit.regex' => 'Amount must be at least 0.01',
+            'amountInRinggit.min' => 'Amount must be at least 0.01',
             'selectedPaymentMethod.required' => 'Select a payment method',
         ]);
 

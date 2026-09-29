@@ -35,6 +35,10 @@ final class ActivityStore
      */
     public function recordWebhook(string $eventRefNum, array $record): bool
     {
+        // Cache::add() is atomic (fails if the key already exists), which is what makes this dedupe check
+        // safe under concurrent deliveries of the same eventRefNum -- the correctness guarantee this method
+        // exists for. The read-modify-write below it is not atomic, but it only affects the display-only
+        // "recent webhooks" list, so a rare lost row under concurrent *different* eventRefNums is acceptable.
         $firstDelivery = Cache::add('prestopay:seen:' . $eventRefNum, true, self::CHECKOUT_TTL_SECONDS);
         if ($firstDelivery) {
             $webhooks = Cache::get('prestopay:webhooks', []);

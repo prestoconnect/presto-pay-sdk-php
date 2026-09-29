@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "72189786d1b1bdd1103efaf319d9c17e",
+    "content-hash": "8acc0d97e044d17678ee62e54d21fca7",
     "packages": [
         {
             "name": "prestouniverse/presto-pay-sdk",
@@ -12,7 +12,7 @@
             "dist": {
                 "type": "path",
                 "url": "../..",
-                "reference": "3ccbcb6019d34b2c6a7d72cb60327711e63dd25d"
+                "reference": "de550cb588670b721d46adb136c1382837d21b57"
             },
             "require": {
                 "ext-curl": "*",
@@ -60,7 +60,24 @@
             "license": [
                 "Apache-2.0"
             ],
+            "authors": [
+                {
+                    "name": "Presto Universe",
+                    "homepage": "https://github.com/prestoconnect"
+                }
+            ],
             "description": "Presto Pay merchant SDK for PHP",
+            "homepage": "https://github.com/prestoconnect/presto-pay-sdk-php",
+            "keywords": [
+                "payment-gateway",
+                "payments",
+                "presto",
+                "presto-pay"
+            ],
+            "support": {
+                "issues": "https://github.com/prestoconnect/presto-pay-sdk-php/issues",
+                "source": "https://github.com/prestoconnect/presto-pay-sdk-php"
+            },
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -1837,6 +1854,89 @@
                 }
             ],
             "time": "2026-09-15T07:09:35+00:00"
+        },
+        {
+            "name": "symfony/lock",
+            "version": "v7.4.18",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/lock.git",
+                "reference": "4073e583b1cb048799706d7ba3245328858cfea6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/lock/zipball/4073e583b1cb048799706d7ba3245328858cfea6",
+                "reference": "4073e583b1cb048799706d7ba3245328858cfea6",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "psr/log": "^1|^2|^3"
+            },
+            "conflict": {
+                "doctrine/dbal": "<3.6",
+                "symfony/cache": "<6.4"
+            },
+            "require-dev": {
+                "doctrine/dbal": "^3.6|^4",
+                "predis/predis": "^1.1|^2.0",
+                "symfony/serializer": "^6.4|^7.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Lock\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jérémy Derussé",
+                    "email": "jeremy@derusse.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Creates and manages locks, a mechanism to provide exclusive access to a shared resource",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "cas",
+                "flock",
+                "locking",
+                "mutex",
+                "redlock",
+                "semaphore"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/lock/tree/v7.4.18"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-08-30T20:10:52+00:00"
         },
         {
             "name": "symfony/polyfill-intl-grapheme",

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use Psr\Cache\CacheItemPoolInterface;
+use Symfony\Component\Lock\LockFactory;
 
 /**
  * Recent-activity storage for the demo, backed by Symfony's own cache.app pool (filesystem by default --
@@ -18,7 +19,10 @@ final class ActivityStore
     private const MAX_WEBHOOKS = 50;
     private const TTL_SECONDS = 86400;
 
-    public function __construct(private readonly CacheItemPoolInterface $cache) {}
+    public function __construct(
+        private readonly CacheItemPoolInterface $cache,
+        private readonly LockFactory $lockFactory,
+    ) {}
 
     /** @param array<string, mixed> $record */
     public function saveCheckout(string $txnRefNum, array $record): void
@@ -44,13 +48,26 @@ final class ActivityStore
      */
     public function recordWebhook(string $eventRefNum, array $record): bool
     {
-        $seenItem = $this->cache->getItem($this->key('seen.' . $eventRefNum));
-        if ($seenItem->isHit()) {
+        // A plain isHit()-then-save() here would race: two concurrent deliveries of the same eventRefNum
+        // could both observe a miss before either writes, and both would (wrongly) run fulfilment. The lock
+        // makes the check-and-set atomic across requests, not just within one.
+        $lock = $this->lockFactory->createLock('prestopay-webhook-seen-' . $eventRefNum, self::TTL_SECONDS);
+        if (!$lock->acquire()) {
             return false;
         }
-        $seenItem->set(true)->expiresAfter(self::TTL_SECONDS);
-        $this->cache->save($seenItem);
+        try {
+            $seenItem = $this->cache->getItem($this->key('seen.' . $eventRefNum));
+            if ($seenItem->isHit()) {
+                return false;
+            }
+            $seenItem->set(true)->expiresAfter(self::TTL_SECONDS);
+            $this->cache->save($seenItem);
+        } finally {
+            $lock->release();
+        }
 
+        // Not locked: this read-modify-write only affects the display-only "recent webhooks" list, so a
+        // rare lost row under concurrent *different* eventRefNums is acceptable, unlike the dedupe above.
         $webhooksItem = $this->cache->getItem($this->key('webhooks'));
         $webhooks = $webhooksItem->isHit() ? $webhooksItem->get() : [];
         array_unshift($webhooks, $record);

@@ -118,7 +118,7 @@ final class PrestoPay
                 if ($decoded->success === false) {
                     $code = isset($decoded->errorCode) && is_string($decoded->errorCode) ? $decoded->errorCode : null;
                     $message = isset($decoded->errorMessage) && is_string($decoded->errorMessage) ? $decoded->errorMessage : null;
-                    throw new ApiException('Gateway rejected ' . $operation . ($code !== null ? ' (' . $code . ')' : ''), $operation, $code === '1203' && $operation === 'init', $reconcileBy, 200, $code, $message);
+                    throw new ApiException('Gateway rejected ' . $operation . ($code !== null ? ' (' . $code . ')' : ''), $operation, $code === ErrorCode::DUPLICATE_TXN_REF_NUM && $operation === 'init', $reconcileBy, 200, $code, $message);
                 }
                 if (!isset($decoded->prestoMrn) || $decoded->prestoMrn !== ($fields['prestoMrn'] ?? null)) {
                     throw new ResponseException('Gateway merchant reference mismatch');
