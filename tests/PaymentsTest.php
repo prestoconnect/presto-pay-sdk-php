@@ -82,6 +82,29 @@ final class PaymentsTest extends TestCase
         }
     }
 
+    public function testProvenUnsentWriteIsRetried(): void
+    {
+        $key = PrivateKey::fromFile(__DIR__ . '/../spec/keys/test-merchant-key.pem');
+        $transport = new class($key) implements HttpTransport {
+            public int $calls = 0;
+            public function __construct(private PrivateKey $key) {}
+            public function post(string $url, string $body, float $timeoutSeconds): HttpResponse
+            {
+                if (++$this->calls === 1) {
+                    throw new HttpFailure('connection refused before any bytes were sent', true);
+                }
+                $request = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+                $response = ['prestoMrn' => $request['prestoMrn'], 'success' => true, 'ts' => Timestamp::now(), 'errorCode' => '', 'errorMessage' => '', 'paymentRefNum' => $request['paymentRefNum'], 'paymentStatus' => 'Authorised', 'refundAmount' => 100, 'refundDetails' => '[]', 'paymentDetails' => '[]'];
+                $response['signature'] = Signer::sign(Canonicalizer::canonicalize($response), $this->key);
+                return new HttpResponse(200, [], json_encode($response, JSON_THROW_ON_ERROR));
+            }
+        };
+        $client = new PrestoPay(Environment::Staging, 'merchant-1', $key, [PublicKey::fromFile(__DIR__ . '/../spec/keys/test-merchant-public.pem')], $transport);
+        $refund = $client->payments()->refund(new RefundRequest('mrn-1', 'payment-1', 'refund-1', 'Customer request'));
+        self::assertSame('payment-1', $refund->paymentRefNum);
+        self::assertSame(2, $transport->calls);
+    }
+
     public function testQueryRetriesTransportFailure(): void
     {
         $key = PrivateKey::fromFile(__DIR__ . '/../spec/keys/test-merchant-key.pem');

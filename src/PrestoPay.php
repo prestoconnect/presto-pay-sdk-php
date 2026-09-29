@@ -87,7 +87,9 @@ final class PrestoPay
             try {
                 $response = $this->transport->post($this->baseUrl . $path, JsonCodec::encode($body), $remaining);
             } catch (HttpFailure $error) {
-                if (!$write && $attempt < $this->retryReads) {
+                // A write is retried only when requestNotSent proves nothing reached the gateway; an
+                // ambiguous (sent) write failure must never be resent automatically.
+                if ($attempt < $this->retryReads && (!$write || $error->requestNotSent)) {
                     $this->backoff($attempt, $started, null);
                     continue;
                 }

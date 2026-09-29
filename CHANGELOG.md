@@ -11,3 +11,9 @@
 - PHP-CS-Fixer added to `composer check` and CI.
 - Plain PHP, Laravel and Symfony webhook handler examples in [`docs/webhooks.md`](docs/webhooks.md), each
   deduplicating on `eventRefNum` with a database-level unique constraint.
+- `sample/my-store/` — a runnable checkout app against Presto staging, with no framework and no dependencies
+  beyond the SDK.
+- Fixed: `init`/`reverse`/`refund` are now retried when a transport failure proves the request was never sent
+  (`requestNotSent`), matching the Go SDK and the documented retry policy; previously a write was never retried
+  even in that safe case.
+- Added `PaymentStatus::PENDING_REVERSE` and `PENDING_REFUND`.
