@@ -9,3 +9,5 @@
   failures; a socket suite proves the classification against real loopback servers.
 - `Retry-After` is honoured for retried reads, and backoff bounds (`initialBackoff`, `maxBackoff`) are configurable.
 - PHP-CS-Fixer added to `composer check` and CI.
+- Plain PHP, Laravel and Symfony webhook handler examples in [`docs/webhooks.md`](docs/webhooks.md), each
+  deduplicating on `eventRefNum` with a database-level unique constraint.
