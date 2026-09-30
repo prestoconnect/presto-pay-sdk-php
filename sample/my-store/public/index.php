@@ -268,10 +268,24 @@ if ($method === 'POST' && $path === '/presto/notify') {
         return;
     }
 
+    try {
+        $payment = $app->client->payments()->query(new QueryRequest(
+            prestoMrn: $event->prestoMrn,
+            paymentRefNum: $event->paymentRefNum,
+        ));
+    } catch (PrestoPayException $error) {
+        // A webhook says what happened, not the payment's resulting status, so the status comes from query. If
+        // that fails, ask Presto to redeliver rather than acknowledging an event that was never processed.
+        error_log('Webhook eventRefNum=' . $event->eventRefNum . ' not processed, query failed: ' . $error->getMessage());
+        header('Content-Type: application/json; charset=UTF-8');
+        echo NotifyAck::Resend->body();
+        return;
+    }
+
     $firstDelivery = $app->activityStore->recordWebhook($event->eventRefNum, [
         'receivedAt' => date(DATE_ATOM),
         'eventCode' => $event->eventCode,
-        'paymentStatus' => $event->paymentStatus,
+        'paymentStatus' => $payment->paymentStatus,
         'txnRefNum' => $event->txnRefNum,
         'paymentRefNum' => $event->paymentRefNum,
         'success' => $event->success,
@@ -280,9 +294,10 @@ if ($method === 'POST' && $path === '/presto/notify') {
     ]);
     if ($firstDelivery) {
         error_log(sprintf(
-            'Webhook verified eventCode=%s paymentStatus=%s txnRefNum=%s paymentRefNum=%s eventRefNum=%s',
+            'Webhook verified eventCode=%s success=%s queried paymentStatus=%s txnRefNum=%s paymentRefNum=%s eventRefNum=%s',
             $event->eventCode,
-            $event->paymentStatus,
+            $event->success ? 'true' : 'false',
+            (string) $payment->paymentStatus,
             $event->txnRefNum,
             $event->paymentRefNum,
             $event->eventRefNum,

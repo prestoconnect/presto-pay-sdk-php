@@ -70,7 +70,6 @@ final readonly class WebhookVerifier
                 Fields::optionalString($body, 'userRefNum'),
                 Fields::optionalString($body, 'additionalData'),
                 array_map(static fn (\stdClass $item): PaymentDetail => new PaymentDetail($item), Fields::list($body, 'paymentDetails')),
-                $eventCode === 'Authorised' && !$body->success ? 'Failed' : $eventCode,
                 (array) $body,
             );
         } catch (ResponseException $error) {

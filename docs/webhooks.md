@@ -11,7 +11,13 @@ payment state.
 Return HTTP 200 with `NotifyAck::Ok->body()` (`{"resend":false}`) after successful processing. For a temporary
 local failure, return `NotifyAck::Resend->body()` (`{"resend":true}`). Invalid signatures, foreign merchant IDs
 and malformed or stale events are permanent failures; `NotifyAck::forThrowable()` maps these to `Ok` to avoid
-repeated deliveries that cannot succeed.
+repeated deliveries that cannot succeed. It does so only for exceptions from verification (`operation()` is
+`'webhook'`): the same exception types from a call inside the handler, such as a failed `query`, get `Resend`, so
+the event is redelivered rather than lost.
+
+A webhook says what happened (`eventCode`, `success`), not the payment's resulting status, and `WebhookEvent`
+carries no status. Call `payments()->query()` for it, and mark `eventRefNum` as processed only after that
+succeeds, so a redelivery after a failed query is not mistaken for a duplicate.
 
 A webhook-only process needs Presto's public certificate and merchant IDs. Keep the merchant private key out of
 that process.

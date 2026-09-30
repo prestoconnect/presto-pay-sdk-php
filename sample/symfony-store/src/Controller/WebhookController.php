@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\ActivityStore;
+use PrestoUniverse\PrestoPay\Exception\PrestoPayException;
+use PrestoUniverse\PrestoPay\PrestoPay;
+use PrestoUniverse\PrestoPay\Request\QueryRequest;
 use PrestoUniverse\PrestoPay\Webhook\NotifyAck;
 use PrestoUniverse\PrestoPay\Webhook\WebhookVerifier;
 use Psr\Log\LoggerInterface;
@@ -18,6 +21,7 @@ final class WebhookController
         private readonly WebhookVerifier $webhookVerifier,
         private readonly ActivityStore $activityStore,
         private readonly LoggerInterface $logger,
+        private readonly PrestoPay $presto,
     ) {}
 
     #[Route('/presto/notify', name: 'presto_notify', methods: ['POST'])]
@@ -30,10 +34,22 @@ final class WebhookController
             return new Response(NotifyAck::forThrowable($error)->body(), 200, ['Content-Type' => 'application/json']);
         }
 
+        try {
+            $payment = $this->presto->payments()->query(new QueryRequest(
+                prestoMrn: $event->prestoMrn,
+                paymentRefNum: $event->paymentRefNum,
+            ));
+        } catch (PrestoPayException $error) {
+            // A webhook says what happened, not the payment's resulting status, so the status comes from query.
+            // If that fails, ask Presto to redeliver rather than acknowledging an event that was never processed.
+            $this->logger->warning('Webhook eventRefNum=' . $event->eventRefNum . ' not processed, query failed: ' . $error->getMessage());
+            return new Response(NotifyAck::Resend->body(), 200, ['Content-Type' => 'application/json']);
+        }
+
         $firstDelivery = $this->activityStore->recordWebhook($event->eventRefNum, [
             'receivedAt' => (new \DateTimeImmutable())->format(DATE_ATOM),
             'eventCode' => $event->eventCode,
-            'paymentStatus' => $event->paymentStatus,
+            'paymentStatus' => $payment->paymentStatus,
             'txnRefNum' => $event->txnRefNum,
             'paymentRefNum' => $event->paymentRefNum,
             'success' => $event->success,
@@ -43,9 +59,10 @@ final class WebhookController
 
         if ($firstDelivery) {
             $this->logger->info(sprintf(
-                'Webhook verified eventCode=%s paymentStatus=%s txnRefNum=%s paymentRefNum=%s eventRefNum=%s',
+                'Webhook verified eventCode=%s success=%s queried paymentStatus=%s txnRefNum=%s paymentRefNum=%s eventRefNum=%s',
                 $event->eventCode,
-                $event->paymentStatus,
+                $event->success ? 'true' : 'false',
+                (string) $payment->paymentStatus,
                 $event->txnRefNum,
                 $event->paymentRefNum,
                 $event->eventRefNum,

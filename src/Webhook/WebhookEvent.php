@@ -27,7 +27,6 @@ final readonly class WebhookEvent
         public ?string $userRefNum,
         public ?string $additionalData,
         public array $paymentDetails,
-        public string $paymentStatus,
         public array $raw,
     ) {}
 }

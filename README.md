@@ -166,8 +166,10 @@ echo $ack->body();
 
 Rejects a webhook whose signed `ts` is more than 15 minutes from the local clock (`maxTimestampAge`
 constructor option), so a captured webhook cannot be replayed later. Keep the host clock in sync (NTP).
-`event->paymentStatus` reflects the notify contract. After any webhook, call `payments()->query()` for
-authoritative payment status. See [webhook handling](docs/webhooks.md) and [production setup](docs/production.md).
+A webhook says what happened to a payment (`eventCode`, and `success` for whether it worked), not the payment's
+resulting status — a failed `Refunded`, for example, leaves the payment as it was — so `WebhookEvent` carries no
+status. Call `payments()->query()` in the handler for the current status, and answer `NotifyAck::Resend` if that
+query fails so Presto delivers the event again. See [webhook handling](docs/webhooks.md) and [production setup](docs/production.md).
 
 ## Errors
 

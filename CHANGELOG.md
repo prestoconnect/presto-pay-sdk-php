@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Breaking:** `WebhookEvent::$paymentStatus` is removed. A webhook reports what happened (`eventCode`,
+  `success`), not the payment's resulting status, and deriving one was guesswork: a `Refunded` or `Reversed` event
+  with `success: false` is a refund or reversal that failed, leaving the payment in its previous status, which the
+  event does not carry. Call `payments()->query()` for the current status. This follows the shared wire contract.
+- Fixed: `NotifyAck::forThrowable()` answered `Ok` for any `SignatureException` or `ResponseException`, including
+  ones from a `query` made inside the webhook handler, which told Presto to stop redelivering an event the
+  handler never processed. It now answers `Ok` only when `operation()` is `'webhook'`.
+- The three samples query the payment in their webhook handler and list the returned status; a failed query
+  answers `NotifyAck::Resend` without recording the event.
+- `spec/` updated to `presto-pay-spec` `e8e8177`.
+
 - `sample/laravel-store/` and `sample/symfony-store/` now require `prestouniverse/presto-pay-sdk` from
   Packagist (`^0.1.0`) instead of linking this checkout via a Composer path repository.
 
