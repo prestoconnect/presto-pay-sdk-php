@@ -132,7 +132,7 @@ $payment = $presto->payments()->init(new InitRequest(
     currencyCode: 'MYR',
     notifyUrl: 'https://your-app.example/presto/notify',
     redirectUrl: "https://your-app.example/presto/return/{$orderId}",
-    allowedPaymentMethods: [PaymentMethod::CARD], // Skip this unless you build your own payment selection page
+    allowedPaymentMethods: [PaymentMethod::PM_PG_CARD], // Skip this unless you build your own payment selection page
 ));
 
 // Save $payment->paymentRefNum with the order, then send the shopper to Presto.
