@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Service\ActivityStore;
 use PrestoUniverse\PrestoPay\Exception\PrestoPayException;
+use PrestoUniverse\PrestoPay\Exception\SignatureException;
 use PrestoUniverse\PrestoPay\PrestoPay;
 use PrestoUniverse\PrestoPay\Request\QueryRequest;
 use PrestoUniverse\PrestoPay\Webhook\NotifyAck;
@@ -29,6 +30,9 @@ final class WebhookController
     {
         try {
             $event = $this->webhookVerifier->verify($request->getContent());
+        } catch (SignatureException $error) {
+            $this->logger->warning('Webhook rejected: ' . $error->getMessage());
+            return new Response('', 401);
         } catch (\Throwable $error) {
             $this->logger->warning('Webhook rejected: ' . $error->getMessage());
             return new Response(NotifyAck::forThrowable($error)->body(), 200, ['Content-Type' => 'application/json']);

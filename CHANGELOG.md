@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- The README is now a getting-started guide: creating your key pair and sending Presto the `.der` public key,
+  how a payment flows, a four-step quick start and a payment status table. Reference material moved into
+  `docs/` (payments and errors, webhooks with complete Laravel and Symfony handlers, production), and
+  `docs/production.md` shows how to convert Presto's `.der` certificate to PEM for an inline
+  `PRESTOPAY_PUBLIC_KEY`.
+- The three samples answer HTTP 401 to a webhook that fails with a `SignatureException`, instead of
+  acknowledging it.
+
 ## 0.2.0 - 2026-10-01
 
 - **Breaking:** `WebhookEvent::$paymentStatus` is removed. A webhook reports what happened (`eventCode`,

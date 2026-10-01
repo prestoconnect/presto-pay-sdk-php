@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use PrestoUniverse\PrestoPay\Exception\PrestoPayException;
+use PrestoUniverse\PrestoPay\Exception\SignatureException;
 use PrestoUniverse\PrestoPay\PrestoPay;
 use PrestoUniverse\PrestoPay\Request\QueryRequest;
 use PrestoUniverse\PrestoPay\Webhook\NotifyAck;
@@ -26,6 +27,9 @@ class WebhookController extends Controller
     {
         try {
             $event = $this->webhookVerifier->verify($request->getContent());
+        } catch (SignatureException $error) {
+            Log::warning('Webhook rejected: ' . $error->getMessage());
+            return response('', 401);
         } catch (\Throwable $error) {
             Log::warning('Webhook rejected: ' . $error->getMessage());
             return response(NotifyAck::forThrowable($error)->body(), 200)
