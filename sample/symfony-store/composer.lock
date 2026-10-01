@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "063e70ec6e048cce7319a6ffcdfb1fbd",
+    "content-hash": "4457daa2f8a7e240712feac198f6e27f",
     "packages": [
         {
             "name": "prestouniverse/presto-pay-sdk",
-            "version": "v0.1.0",
+            "version": "v0.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prestoconnect/presto-pay-sdk-php.git",
-                "reference": "7f711594c5de84f18664e7f4bbc9f9d3ecc35967"
+                "reference": "2378ecf4ad378a0d5f9df877a63d8d7d56490b89"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prestoconnect/presto-pay-sdk-php/zipball/7f711594c5de84f18664e7f4bbc9f9d3ecc35967",
-                "reference": "7f711594c5de84f18664e7f4bbc9f9d3ecc35967",
+                "url": "https://api.github.com/repos/prestoconnect/presto-pay-sdk-php/zipball/2378ecf4ad378a0d5f9df877a63d8d7d56490b89",
+                "reference": "2378ecf4ad378a0d5f9df877a63d8d7d56490b89",
                 "shasum": ""
             },
             "require": {
@@ -63,7 +63,7 @@
                 "issues": "https://github.com/prestoconnect/presto-pay-sdk-php/issues",
                 "source": "https://github.com/prestoconnect/presto-pay-sdk-php"
             },
-            "time": "2026-09-29T08:43:06+00:00"
+            "time": "2026-10-01T00:42:50+00:00"
         },
         {
             "name": "psr/cache",
