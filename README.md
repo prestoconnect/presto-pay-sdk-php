@@ -4,29 +4,22 @@
 [![CI](https://github.com/prestoconnect/presto-pay-sdk-php/actions/workflows/ci.yml/badge.svg)](https://github.com/prestoconnect/presto-pay-sdk-php/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-Standalone, framework-agnostic PHP 8.2+ library for the **Presto Connect** payment gateway. It handles the
-parts that are easy to get subtly wrong when integrating a signed payment API by hand: typed request/result
-objects, RSA request signing, response and webhook signature verification, and PEM key loading.
+Accept payments through the **Presto Connect** payment gateway from any PHP application. The SDK signs every
+request, verifies every response and webhook, and gives you typed requests and results, so you don't have to
+handle the gateway's signature scheme yourself.
 
-- **PHP 8.2+** — no required framework or dependency injection container
-- Only `ext-curl`, `ext-json`, `ext-openssl`, and the PSR-18/17 HTTP interfaces (no concrete HTTP client
-  dependency; bring your own, or use the bundled cURL transport)
-- Immutable, `readonly` request and result objects, and a `readonly` `PrestoPay` client — build once, reuse
+- **PHP 8.2+** (64-bit), with or without a framework
+- Needs only `ext-curl`, `ext-json` and `ext-openssl`; bring your own PSR-18 client if you prefer
+- Immutable `readonly` requests and results: build one `PrestoPay` and reuse it
 
 ## Contents
 
 - [Install](#install)
+- [Before you start](#before-you-start)
+- [How a payment works](#how-a-payment-works)
 - [Quick start](#quick-start)
-- [Merchant identity](#merchant-identity)
-- [Configuration from environment](#configuration-from-environment)
-- [Retries and idempotency](#retries-and-idempotency)
-- [Webhooks](#webhooks)
-- [Errors](#errors)
-- [Custom HTTP client](#custom-http-client)
-- [Debugging signatures](#debugging-signatures)
-- [Samples](#samples)
-- [Contributing](#contributing)
-- [License](#license)
+- [Payment statuses](#payment-statuses)
+- [Next steps](#next-steps)
 
 ## Install
 
@@ -34,209 +27,222 @@ objects, RSA request signing, response and webhook signature verification, and P
 composer require prestouniverse/presto-pay-sdk
 ```
 
-For development from this checkout, run `composer install` and include `vendor/autoload.php`.
+## Before you start
 
-The SDK requires 64-bit PHP, `ext-curl`, `ext-json` and `ext-openssl`. It runs on PHP 8.2–8.5 in CI.
+### 1. Create your key pair
+
+You sign every request with your own RSA private key, and Presto verifies it with the matching public key.
+Generate the pair yourself with `openssl`; the private key never leaves your systems:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out merchant-key.pem
+openssl req -new -x509 -key merchant-key.pem -days 3650 -subj "/CN=Your Company" -outform DER -out merchant.der
+```
+
+`merchant-key.pem` is your private key in the PEM format the SDK reads; keep it secret, out of source control
+and outside the web root. Send `merchant.der` (your public key, in the DER format Presto requires) to Presto.
+
+### 2. Get your details from Presto
+
+| From Presto | What it is | Where it goes |
+|-------------|------------|---------------|
+| Merchant ID (`mid`) | Identifies your merchant account | `new PrestoPay(merchantId: ...)` |
+| Presto merchant reference (`prestoMrn`) | Identifies the shop or outlet; one `mid` can have several | Every request: `prestoMrn` |
+| Presto certificate (`.der`) | Verifies Presto's responses and webhooks; the SDK reads it as is | `PublicKey::fromFile(...)` |
+
+Staging and production are separate: each has its own `mid`, `prestoMrn` and Presto certificate, and you
+register your public key for each. Never mix them.
+
+## How a payment works
+
+```
+ Your server                      Presto                     Shopper's browser
+     |---- 1. init ------------------>|                              |
+     |<--- paymentUrl ----------------|                              |
+     |---- 2. redirect to paymentUrl ------------------------------->|
+     |                                |<---- 3. shopper pays --------|
+     |                                |---- 4a. redirect to your redirectUrl -->|
+     |<--- 4b. webhook to your notifyUrl                             |
+     |---- 5. query ----------------->|                              |
+```
+
+1. Your server calls `init` with your order's reference and amount. Presto returns a `paymentUrl`.
+2. You redirect the shopper to `paymentUrl`.
+3. The shopper chooses a payment method and pays on Presto's page.
+4. Presto sends the shopper's browser back to your `redirectUrl` **and** POSTs a signed webhook to your
+   `notifyUrl`. These happen independently and can arrive in either order.
+5. On both, you call `query` to get the payment's status from Presto, and update the order.
+
+The identifiers you'll see:
+
+| Name | Who creates it | What it's for |
+|------|----------------|---------------|
+| `txnRefNum` | You | Your reference for the payment, such as an order ID. Unique per payment, at most 50 characters |
+| `paymentRefNum` | Presto | Presto's reference for the payment, returned by `init` |
+| `eventRefNum` | Presto | Identifies one webhook event; stays the same when Presto redelivers it |
+| `reversalRefNum`, `refundRefNum` | You | Your reference for a reversal or a refund |
 
 ## Quick start
 
-```php
-<?php
-require __DIR__ . '/vendor/autoload.php';
+These examples are plain PHP. For Laravel and Symfony, see [Webhooks](docs/webhooks.md#laravel) and the
+[samples](sample/README.md).
 
+### 1. Create the client
+
+Create it once and reuse it. Bad keys fail here, not on the first payment. The webhook verifier needs only
+Presto's certificate and your `mid`.
+
+```php
 use PrestoUniverse\PrestoPay\Environment;
 use PrestoUniverse\PrestoPay\Key\PrivateKey;
 use PrestoUniverse\PrestoPay\Key\PublicKey;
 use PrestoUniverse\PrestoPay\PrestoPay;
-use PrestoUniverse\PrestoPay\Request\InitRequest;
-use PrestoUniverse\PrestoPay\TxnType;
-
-$presto = new PrestoPay(
-    environment: Environment::Staging,
-    merchantId: 'YOUR_MID',                                       // mid, sent on every request
-    privateKey: PrivateKey::fromFile('/path/to/merchant-key.pem'), // partner private key, request signing
-    prestoPublicKeys: [PublicKey::fromFile('/path/to/presto-public-key.der')], // response/webhook verification
-);
-
-$payment = $presto->payments()->init(new InitRequest(
-    prestoMrn: 'YOUR_PRESTO_MRN', // prestoMrn, required on every request
-    txnType: TxnType::WebPay,
-    txnRefNum: 'order-123',
-    displayDesc: 'Order 123',
-    amount: 10_000, // minor currency units
-    currencyCode: 'MYR',
-    notifyUrl: 'https://your-app.example/presto/notify',
-    redirectUrl: 'https://your-app.example/presto/return/order-123',
-));
-
-header('Location: ' . $payment->paymentUrl, true, 302);
-```
-
-Use a unique `txnRefNum` for each order. The SDK accepts PEM private keys; direct `.p12` loading is pending
-compatibility checks across the supported PHP runtimes. See [payments and errors](docs/payments-and-errors.md).
-
-## Merchant identity
-
-One `PrestoPay` instance belongs to one merchant: `merchantId` (`mid`) is required on the constructor, sent on
-every request, and `WebhookVerifier` rejects events for any other `mid`. `prestoMrn` is set per request — every
-`*Request` object requires it — because one `mid` can have several `prestoMrn`s.
-
-To serve several merchants, build one `PrestoPay` per `mid` (they can share the same keys) and route each
-request and webhook to the matching client, for example an array keyed by `mid`.
-
-## Configuration from environment
-
-```php
-$presto = PrestoPay::fromEnv([
-    'PRESTOPAY_ENV' => 'staging',
-    'PRESTOPAY_MID' => $_ENV['PRESTOPAY_MID'],
-    'PRESTOPAY_PRIVATE_KEY_FILE' => $_ENV['PRESTOPAY_PRIVATE_KEY_FILE'],
-    'PRESTOPAY_PUBLIC_KEY_FILE' => $_ENV['PRESTOPAY_PUBLIC_KEY_FILE'],
-]);
-```
-
-Unlike the Java and Go SDKs' `fromEnv()`, this one takes an array rather than reading the process environment
-itself — the SDK never calls `getenv()` or reads `$_ENV` on its own, so the caller stays in control of where
-secrets come from.
-
-| Key | Required | Description |
-|-----|----------|-------------|
-| `PRESTOPAY_ENV` | One of this or a base URL | `staging` or `production` |
-| `PRESTOPAY_BASE_URL` | Alternative to `PRESTOPAY_ENV` | Overrides the gateway base URL |
-| `PRESTOPAY_MID` | Yes | Merchant `mid` for this client |
-| `PRESTOPAY_PRIVATE_KEY_FILE` | One of this or `PRESTOPAY_PRIVATE_KEY` | Path to a PEM private key |
-| `PRESTOPAY_PRIVATE_KEY` | Alternative to the `_FILE` variant | PEM private key contents |
-| `PRESTOPAY_PRIVATE_KEY_PASSWORD` | No | Private key passphrase |
-| `PRESTOPAY_PUBLIC_KEY_FILE` | One of this or `PRESTOPAY_PUBLIC_KEY` | Presto's public key or certificate (PEM or DER) |
-| `PRESTOPAY_PUBLIC_KEY` | Alternative to the `_FILE` variant | PEM public key/certificate contents |
-
-For production, prefer loading keys from your secret store straight into the constructor rather than through
-plain environment strings when possible.
-
-## Retries and idempotency
-
-`init`, `reverse` and `refund` are **not** automatically retried after the request may have reached Presto.
-The default policy (`retryReads`, `initialBackoff`, `maxBackoff` constructor options) only ever retries `query`
-and a write whose transport failure proves nothing was sent — and only the bundled cURL transport can prove
-that; see [Custom HTTP client](#custom-http-client).
-
-```php
-use PrestoUniverse\PrestoPay\Exception\PrestoPayException;
-
-try {
-    $result = $presto->payments()->init($request);
-} catch (PrestoPayException $error) {
-    if ($error->mayHaveTakenEffect()) {
-        // Query by $error->reconcileBy() before creating another payment.
-    }
-    throw $error;
-}
-```
-
-`init` is idempotent by `txnRefNum` on the gateway side: resending it with an existing `txnRefNum` returns that
-payment's current status rather than creating a second record or failing — this is gateway behaviour shared
-across all four Presto Pay SDKs, confirmed against real staging traffic. `query` remains the more direct way to
-check status without relying on that. See [payments and errors](docs/payments-and-errors.md).
-
-## Webhooks
-
-Presto POSTs JSON to your `notifyUrl` from its own infrastructure — the URL must be **publicly reachable**, not
-`localhost`, unless you tunnel it. Verify the raw request body, confirm the merchant ID and timestamp, and
-deduplicate by `eventRefNum` before fulfilment. A verifier needs only Presto's public certificate.
-
-```php
-use PrestoUniverse\PrestoPay\Key\PublicKey;
-use PrestoUniverse\PrestoPay\Webhook\NotifyAck;
 use PrestoUniverse\PrestoPay\Webhook\WebhookVerifier;
 
-$verifier = new WebhookVerifier(
-    [$_ENV['PRESTOPAY_MID']],                              // rejects events signed for other merchants
-    [PublicKey::fromFile($_ENV['PRESTOPAY_PUBLIC_KEY_FILE'])],
-);
-try {
-    $event = $verifier->verify((string) file_get_contents('php://input'));
-    // Persist eventRefNum under a unique constraint, then handle the event once.
-    $ack = NotifyAck::Ok;
-} catch (\Throwable $error) {
-    $ack = NotifyAck::forThrowable($error);
-}
-header('Content-Type: application/json');
-echo $ack->body();
-```
-
-Rejects a webhook whose signed `ts` is more than 15 minutes from the local clock (`maxTimestampAge`
-constructor option), so a captured webhook cannot be replayed later. Keep the host clock in sync (NTP).
-A webhook says what happened to a payment (`eventCode`, and `success` for whether it worked), not the payment's
-resulting status — a failed `Refunded`, for example, leaves the payment as it was — so `WebhookEvent` carries no
-status. Call `payments()->query()` in the handler for the current status, and answer `NotifyAck::Resend` if that
-query fails so Presto delivers the event again. See [webhook handling](docs/webhooks.md) and [production setup](docs/production.md).
-
-## Errors
-
-All SDK errors extend `PrestoPayException` (unchecked `\RuntimeException`), which exposes `operation()`,
-`mayHaveTakenEffect()` and `reconcileBy()`:
-
-| Type | When |
-|------|------|
-| `ApiException` | HTTP 200 with `success: false`, or a non-200 HTTP status. `errorCode()`, `errorMessage()`, `httpStatus()` |
-| `SignatureException` | Invalid or missing signature on a response or webhook; webhook `mid` not configured, or `ts` outside the replay window |
-| `ResponseException` | Response or webhook body cannot be parsed (malformed JSON, missing required fields). The operation may still have succeeded — reconcile with `query` |
-| `TransportException` | Network, timeout, or TLS failure. `requestNotSent()` |
-| `ConfigException` | Constructor or request validation, bad keys |
-
-Compare business error codes to constants in `ErrorCode` (e.g. `ErrorCode::EXPIRED_TIMESTAMP` = `1005`, clock
-skew — Presto timestamps use a fixed UTC+8 offset, so host clock accuracy matters).
-
-## Custom HTTP client
-
-Implement `HttpTransport` and pass it to the constructor (for proxies, pooling, or observability), or use the
-bundled `Psr18Transport` to adapt any PSR-18 client:
-
-```php
-use PrestoUniverse\PrestoPay\Http\Psr18Transport;
+$prestoKey = PublicKey::fromFile('/path/to/presto.der');
 
 $presto = new PrestoPay(
     environment: Environment::Staging,
     merchantId: 'YOUR_MID',
-    privateKey: $privateKey,
-    prestoPublicKeys: [$publicKey],
-    transport: new Psr18Transport($guzzleClient, $requestFactory, $streamFactory),
+    privateKey: PrivateKey::fromFile('/path/to/merchant-key.pem'),
+    prestoPublicKeys: [$prestoKey],
 );
+
+$verifier = new WebhookVerifier(['YOUR_MID'], [$prestoKey]);
 ```
 
-A custom transport must return non-2xx responses rather than throw, must not follow redirects or resend
-requests, and must set `requestNotSent` on `HttpFailure` only when the request certainly never left the
-process. **An injected PSR-18 client cannot prove this** — `NetworkExceptionInterface` says only "the request
-never completed", not "the request was never written" — so every injected-client transport failure is treated
-as sent, and `init`/`reverse`/`refund` are never automatically retried behind one. Use the bundled
-`CurlTransport` for the payment path if that automatic-retry-when-proven-unsent behaviour matters to you.
+To configure the client from environment variables instead, see
+[Configuration](docs/production.md#configuration-from-environment).
 
-## Debugging signatures
+### 2. Start a payment
 
-Use `Canonicalizer::fromJson($json)` to reproduce the gateway canonical string from a raw JSON body. Avoid
-depending on types under `PrestoUniverse\PrestoPay\Internal` — they are not semver-stable.
+```php
+use PrestoUniverse\PrestoPay\PaymentMethod;
+use PrestoUniverse\PrestoPay\Request\InitRequest;
+use PrestoUniverse\PrestoPay\TxnType;
 
-## Samples
+$payment = $presto->payments()->init(new InitRequest(
+    prestoMrn: 'YOUR_PRESTO_MRN',
+    txnType: TxnType::WebPay,
+    txnRefNum: $orderId,
+    displayDesc: "Order {$orderId}",
+    amount: 10_000, // minor units: MYR 100.00
+    currencyCode: 'MYR',
+    notifyUrl: 'https://your-app.example/presto/notify',
+    redirectUrl: "https://your-app.example/presto/return/{$orderId}",
+    allowedPaymentMethods: [PaymentMethod::CARD], // Skip this unless you build your own payment selection page
+));
 
-The same **MyStore** checkout — a toggle between the Presto-hosted and self-hosted ways to pick a payment
-method, a return page, and webhook handling with a "recent webhooks" list — built three ways:
+// Save $payment->paymentRefNum with the order, then send the shopper to Presto.
+if ($payment->paymentUrl === null) {
+    throw new \RuntimeException("Presto returned no paymentUrl for {$orderId}");
+}
+header('Location: ' . $payment->paymentUrl, true, 302);
+```
 
-- [sample/my-store/](sample/my-store/) — PHP's built-in web server, no framework, no dependencies beyond the
-  SDK.
-- [sample/laravel-store/](sample/laravel-store/) — Laravel 13, Blade views, a service provider, `Cache` facade.
-- [sample/symfony-store/](sample/symfony-store/) — Symfony 7.4, Twig, attribute routing, the `cache.app` pool.
+`notifyUrl` must be reachable from the internet; on your own machine, use a tunnel such as ngrok.
 
-See [sample/README.md](sample/README.md) for details on all three.
+### 3. Show the result on your return page
+
+The redirect only tells you the shopper came back, not whether they paid. Ask Presto:
+
+```php
+use PrestoUniverse\PrestoPay\PaymentStatus;
+use PrestoUniverse\PrestoPay\Request\QueryRequest;
+
+$result = $presto->payments()->query(new QueryRequest(prestoMrn: 'YOUR_PRESTO_MRN', txnRefNum: $orderId));
+
+if ($result->paymentStatus === PaymentStatus::AUTHORISED) {
+    // Paid: show the confirmation.
+} elseif ($result->paymentStatus === PaymentStatus::PENDING_AUTHORISE) {
+    // Not finished yet: show "processing" and check again shortly.
+} else {
+    // Not paid (Failed, Cancelled, Expired, ...): let the shopper try again.
+}
+```
+
+### 4. Handle the webhook
+
+A webhook tells you something happened to a payment (`eventCode`, and `success` for whether it worked), not the
+payment's resulting status, so query for that here too. Verify the **raw** request body, exactly as received.
+
+```php
+use PrestoUniverse\PrestoPay\Exception\SignatureException;
+use PrestoUniverse\PrestoPay\Webhook\NotifyAck;
+
+try {
+    $event = $verifier->verify((string) file_get_contents('php://input'));
+} catch (SignatureException $error) {
+    http_response_code(401); // forged, for another mid, or too old
+    return;
+} catch (\Throwable $error) {
+    header('Content-Type: application/json');
+    echo NotifyAck::forThrowable($error)->body(); // malformed body
+    return;
+}
+
+header('Content-Type: application/json');
+if (!$orders->isEventHandled($event->eventRefNum)) {
+    try {
+        $payment = $presto->payments()->query(new QueryRequest(
+            prestoMrn: $event->prestoMrn,
+            paymentRefNum: $event->paymentRefNum,
+        ));
+        $orders->updateStatus($event->txnRefNum, $payment->paymentStatus, $event->eventRefNum);
+    } catch (\Throwable $error) {
+        echo NotifyAck::Resend->body();
+        return;
+    }
+}
+echo NotifyAck::Ok->body();
+```
+
+`NotifyAck::Ok` tells Presto the event is handled. `NotifyAck::Resend` asks Presto to deliver it again (after 1,
+2, 5 and 10 minutes), which you want when your own processing failed. Presto redelivers an event with the same
+`eventRefNum`, so record it once handled and skip it on later deliveries. See [Webhooks](docs/webhooks.md) for
+the details.
+
+Update the order the same way from your return page and your webhook: whichever arrives first records the
+status, and the other finds it already done.
+
+## Payment statuses
+
+`paymentStatus` is one of these strings; compare it with the `PaymentStatus` constants.
+
+| Status | Meaning | What to do |
+|--------|---------|------------|
+| `PendingAuthorise` | Created; the shopper hasn't finished paying | Wait. It becomes `Expired` if not paid within 15 minutes of `init` |
+| `Authorised` | Paid | Fulfil the order |
+| `Failed` | The payment attempt failed | Don't fulfil; let the shopper try again with a new `txnRefNum` |
+| `Cancelled` | Cancelled before it was paid, for example by `reverse` | Don't fulfil |
+| `Expired` | Not paid within 15 minutes | Don't fulfil; start a new payment if the shopper returns |
+| `PendingReverse` | A reversal is in progress | Query again later |
+| `Reversed` | The payment was reversed | Treat the order as cancelled |
+| `PendingRefund` | A refund is in progress | Query again later |
+| `PartialRefunded` | Part of the amount was refunded | Update the order's refunded amount |
+| `Refunded` | The full amount was refunded | Treat the order as refunded |
+
+The gateway can add statuses, so handle an unknown value without failing.
+
+## Next steps
+
+- [Payments and errors](docs/payments-and-errors.md): look up, reverse and refund payments; handle errors and
+  timeouts safely.
+- [Webhooks](docs/webhooks.md): replies, redelivery, deduplication, and complete Laravel and Symfony handlers.
+- [Production](docs/production.md): configuration, keys, several merchants, custom HTTP clients, the go-live
+  checklist and troubleshooting.
+- [Samples](sample/README.md): the same checkout, runnable against Presto staging, in plain PHP
+  ([`my-store`](sample/my-store/)), Laravel ([`laravel-store`](sample/laravel-store/)) and Symfony
+  ([`symfony-store`](sample/symfony-store/)).
 
 ## Contributing
 
-Building, testing, code style, and the release process live in [CONTRIBUTING.md](CONTRIBUTING.md). Report
-security issues per [SECURITY.md](SECURITY.md) rather than opening a public issue.
+Building, testing, code style and the release process are in [CONTRIBUTING.md](CONTRIBUTING.md). Report
+security issues as described in [SECURITY.md](SECURITY.md), not in a public issue.
 
-The `spec/` directory is a checked-in snapshot of the shared wire contract and test vectors. Its source commit
-is recorded in [`spec/.source-commit`](spec/.source-commit). No real merchant or staging credentials belong in
-this repository.
+`spec/` is a checked-in copy of the shared wire contract and test vectors; [`spec/.source-commit`](spec/.source-commit)
+records the commit it was copied from. Real merchant or staging credentials never belong in this repository.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).

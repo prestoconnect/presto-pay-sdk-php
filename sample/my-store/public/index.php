@@ -17,6 +17,7 @@ require dirname(__DIR__, 3) . '/vendor/autoload.php';
 
 use PrestoUniverse\PrestoPay\Exception\ConfigException;
 use PrestoUniverse\PrestoPay\Exception\PrestoPayException;
+use PrestoUniverse\PrestoPay\Exception\SignatureException;
 use PrestoUniverse\PrestoPay\PaymentMethod;
 use PrestoUniverse\PrestoPay\Request\InitRequest;
 use PrestoUniverse\PrestoPay\Request\QueryRequest;
@@ -261,6 +262,10 @@ if ($method === 'POST' && preg_match('#^/payments/([^/]+)/refund$#', $path, $mat
 if ($method === 'POST' && $path === '/presto/notify') {
     try {
         $event = $app->webhookVerifier->verify((string) file_get_contents('php://input'));
+    } catch (SignatureException $error) {
+        error_log('Webhook rejected: ' . $error->getMessage());
+        http_response_code(401);
+        return;
     } catch (\Throwable $error) {
         error_log('Webhook rejected: ' . $error->getMessage());
         header('Content-Type: application/json; charset=UTF-8');

@@ -8,9 +8,10 @@ third-party dependencies beyond the SDK itself.
 
 ### Staging credentials
 
-Use the staging merchant credentials from your Presto onboarding pack. Nothing secret ships with the sample.
+Use your staging `mid` and `prestoMrn` from Presto, the staging key pair you registered with them, and
+Presto's staging certificate. Nothing secret ships with the sample.
 
-1. Copy your private key and Presto's public key somewhere on disk — see
+1. Copy your private key and Presto's certificate somewhere on disk — see
    [`my-store/keys/README.md`](my-store/keys/README.md). They do not need to live inside this repository.
 2. Copy [`my-store/.env.example`](my-store/.env.example) to `my-store/.env` (gitignored) and fill in the
    values.
