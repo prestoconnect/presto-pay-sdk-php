@@ -238,10 +238,8 @@ The gateway can add statuses, so handle an unknown value without failing.
 ## Contributing
 
 Building, testing, code style and the release process are in [CONTRIBUTING.md](CONTRIBUTING.md). Report
-security issues as described in [SECURITY.md](SECURITY.md), not in a public issue.
-
-`spec/` is a checked-in copy of the shared wire contract and test vectors; [`spec/.source-commit`](spec/.source-commit)
-records the commit it was copied from. Real merchant or staging credentials never belong in this repository.
+security issues as described in [SECURITY.md](SECURITY.md), not in a public issue. Real merchant or staging
+credentials never belong in this repository.
 
 ## License
 
