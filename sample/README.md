@@ -93,7 +93,7 @@ Each `init` sets `redirectUrl` to `{PUBLIC_URL}/return/{txnRefNum}`. The `/retur
 `/presto/notify` verifies the signature, queries the payment, applies its status through the same guarded
 update as the return page (`ActivityStore::applyPaymentStatus`, which finalises an order only once), and answers
 with `NotifyAck::Ok` for a verified event **and** for a permanent failure (bad signature, foreign `mid`, stale
-`ts`) — never `NotifyAck::Resend` for those, since Presto would just redeliver the same unfixable body four
+`ts`) — never `NotifyAck::Resend` for those, since Presto would just redeliver the same unfixable body ten
 more times.
 
 ## Laravel

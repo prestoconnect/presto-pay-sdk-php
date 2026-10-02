@@ -58,8 +58,9 @@ Reply HTTP 200 with a JSON body:
 | `NotifyAck::Ok->body()` (`{"resend":false}`) | Handled; don't send it again | You've updated the order, or it was already in that status |
 | `NotifyAck::Resend->body()` (`{"resend":true}`) | Send it again later | Your own processing failed, for example the `query` or your database |
 
-Presto retries 1, 2, 5 and 10 minutes after the first attempt, so an event is delivered at most five times over
-about 18 minutes. Only ask for a resend when trying again could succeed.
+Presto resends a notification with a backoff of 2, 4, 8, 16, 32, 64, 128, 256, 512 and 1024 minutes between
+attempts, so an event is delivered at most 11 times over about 34 hours. Only ask for a resend when trying again
+could succeed.
 
 `NotifyAck::forThrowable($error)` picks the reply for an exception: `Ok` for a webhook that failed verification,
 and `Resend` for anything else, including a failed `query` inside your handler.
