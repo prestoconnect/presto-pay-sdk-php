@@ -4,16 +4,55 @@ declare(strict_types=1);
 
 namespace PrestoUniverse\PrestoPay\Sample\MyStore;
 
+use PrestoUniverse\PrestoPay\PaymentStatus;
+
 /**
  * Recent-activity storage for the demo. Unlike the Go and Java samples, a PHP request does not share memory
  * with the next one -- the built-in server (and any other SAPI) tears down all script state when a request
- * ends -- so this keeps state in a small JSON file instead of an in-process map. A real merchant would use
- * its database's own tables and a unique constraint on `eventRefNum`, not a file.
+ * ends -- so this keeps state in a small JSON file instead of an in-process map. A real merchant would keep
+ * each order's status in its own database, not a file.
  */
 final class ActivityStore
 {
     private const MAX_WEBHOOKS = 50;
-    private const MAX_SEEN_EVENT_REFS = 500;
+
+    private const PAID_AND_STILL_OPEN = [
+        PaymentStatus::AUTHORISED,
+        PaymentStatus::PENDING_REVERSE,
+        PaymentStatus::PENDING_REFUND,
+        PaymentStatus::PARTIAL_REFUNDED,
+    ];
+    private const AFTER_PAYMENT = [
+        ...self::PAID_AND_STILL_OPEN,
+        PaymentStatus::REVERSED,
+        PaymentStatus::REFUNDED,
+    ];
+
+    private static function canChangeStatus(?string $current, string $next): bool
+    {
+        if ($current === $next) {
+            return false;
+        }
+        if ($current === null || $current === PaymentStatus::PENDING_AUTHORISE) {
+            return true;
+        }
+        if (in_array($current, self::PAID_AND_STILL_OPEN, true)) {
+            return in_array($next, self::AFTER_PAYMENT, true);
+        }
+        return false;
+    }
+
+    private static function describeChange(string $txnRefNum, ?string $current, string $next): string
+    {
+        if (!self::canChangeStatus($current, $next)) {
+            return "Order txnRefNum={$txnRefNum} already finalised; {$next} changes nothing";
+        }
+        $paidNow = $next === PaymentStatus::AUTHORISED
+            && ($current === null || $current === PaymentStatus::PENDING_AUTHORISE);
+        return $paidNow
+            ? "Order txnRefNum={$txnRefNum} paid; fulfilling it"
+            : "Order txnRefNum={$txnRefNum} is now {$next}";
+    }
 
     public function __construct(private readonly string $path) {}
 
@@ -22,7 +61,7 @@ final class ActivityStore
      * read-modify-write. Returns whatever $work returns.
      *
      * @template T
-     * @param callable(array{checkouts: array<string, array<string, mixed>>, webhooks: list<array<string, mixed>>, seenEventRefNums: list<string>}): T $work
+     * @param callable(array{checkouts: array<string, array<string, mixed>>, webhooks: list<array<string, mixed>>, orderStatuses: array<string, string>}): T $work
      * @return T
      */
     private function withLock(callable $work): mixed
@@ -40,11 +79,11 @@ final class ActivityStore
             $raw = stream_get_contents($handle);
             $data = $raw === '' || $raw === false ? null : json_decode($raw, true);
             if (!is_array($data)) {
-                $data = ['checkouts' => [], 'webhooks' => [], 'seenEventRefNums' => []];
+                $data = ['checkouts' => [], 'webhooks' => [], 'orderStatuses' => []];
             }
             $data['checkouts'] ??= [];
             $data['webhooks'] ??= [];
-            $data['seenEventRefNums'] ??= [];
+            $data['orderStatuses'] ??= [];
 
             $result = $work($data);
 
@@ -74,24 +113,29 @@ final class ActivityStore
     }
 
     /**
-     * Records a webhook delivery and reports whether this is the first time this eventRefNum has been seen.
-     * Presto redelivers an unacknowledged webhook up to five times; acking a repeat with NotifyAck::Ok instead
-     * of re-running fulfilment logic is what makes redelivery safe.
-     *
-     * @param array<string, mixed> $record
+     * Applies a queried payment status to the order, finalising it only if it hasn't been finalised yet. The
+     * return page and the webhook both call this, and Presto redelivers webhooks, so it runs under the file
+     * lock; a real merchant makes it one conditional UPDATE on its orders table.
      */
-    public function recordWebhook(string $eventRefNum, array $record): bool
+    public function applyPaymentStatus(string $txnRefNum, string $next): void
     {
-        return $this->withLock(function (array &$data) use ($eventRefNum, $record): bool {
-            $firstDelivery = !in_array($eventRefNum, $data['seenEventRefNums'], true);
-            if ($firstDelivery) {
-                array_unshift($data['seenEventRefNums'], $eventRefNum);
-                $data['seenEventRefNums'] = array_slice($data['seenEventRefNums'], 0, self::MAX_SEEN_EVENT_REFS);
-
-                array_unshift($data['webhooks'], $record);
-                $data['webhooks'] = array_slice($data['webhooks'], 0, self::MAX_WEBHOOKS);
+        $message = $this->withLock(function (array &$data) use ($txnRefNum, $next): string {
+            $current = $data['orderStatuses'][$txnRefNum] ?? null;
+            $message = self::describeChange($txnRefNum, $current, $next);
+            if (self::canChangeStatus($current, $next)) {
+                $data['orderStatuses'][$txnRefNum] = $next;
             }
-            return $firstDelivery;
+            return $message;
+        });
+        error_log($message);
+    }
+
+    /** @param array<string, mixed> $record */
+    public function recordWebhook(array $record): void
+    {
+        $this->withLock(function (array &$data) use ($record): void {
+            array_unshift($data['webhooks'], $record);
+            $data['webhooks'] = array_slice($data['webhooks'], 0, self::MAX_WEBHOOKS);
         });
     }
 

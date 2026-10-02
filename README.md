@@ -185,25 +185,26 @@ try {
 }
 
 header('Content-Type: application/json');
-if (!$orders->isEventHandled($event->eventRefNum)) {
-    try {
-        $payment = $presto->payments()->query(new QueryRequest(
-            prestoMrn: $event->prestoMrn,
-            paymentRefNum: $event->paymentRefNum,
-        ));
-        $orders->updateStatus($event->txnRefNum, $payment->paymentStatus, $event->eventRefNum);
-    } catch (\Throwable $error) {
-        echo NotifyAck::Resend->body();
-        return;
-    }
+try {
+    $payment = $presto->payments()->query(new QueryRequest(
+        prestoMrn: $event->prestoMrn,
+        paymentRefNum: $event->paymentRefNum,
+    ));
+    $orders->applyStatus($event->txnRefNum, $payment->paymentStatus);
+} catch (\Throwable $error) {
+    echo NotifyAck::Resend->body();
+    return;
 }
 echo NotifyAck::Ok->body();
 ```
 
 `NotifyAck::Ok` tells Presto the event is handled. `NotifyAck::Resend` asks Presto to deliver it again (after 1,
-2, 5 and 10 minutes), which you want when your own processing failed. Presto redelivers an event with the same
-`eventRefNum`, so record it once handled and skip it on later deliveries. See [Webhooks](docs/webhooks.md) for
-the details.
+2, 5 and 10 minutes), which you want when your own processing failed.
+
+The same event can arrive more than once, so `applyStatus` checks the order, not the event: it finalises the
+order only if the order hasn't been finalised yet, and fulfils only on the change into `Authorised`. A
+redelivery then finds the order already in that status and changes nothing. See
+[Webhooks](docs/webhooks.md#handling-redeliveries) for the details.
 
 Update the order the same way from your return page and your webhook: whichever arrives first records the
 status, and the other finds it already done.
@@ -233,7 +234,7 @@ The gateway can add statuses, so handle an unknown value without failing.
   code the SDK doesn't list yet.
 - [Payments and errors](docs/payments-and-errors.md): query, reverse and refund payments; handle errors and
   timeouts safely.
-- [Webhooks](docs/webhooks.md): replies, redelivery, deduplication, and complete Laravel and Symfony handlers.
+- [Webhooks](docs/webhooks.md): replies, redelivery, guarding the order update, and complete Laravel and Symfony handlers.
 - [Production](docs/production.md): configuration, keys, several merchants, custom HTTP clients, the go-live
   checklist and troubleshooting.
 - [Samples](sample/README.md): the same checkout, runnable against Presto staging, in plain PHP

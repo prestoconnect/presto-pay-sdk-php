@@ -46,11 +46,22 @@ final class WebhookController
         } catch (PrestoPayException $error) {
             // A webhook says what happened, not the payment's resulting status, so the status comes from query.
             // If that fails, ask Presto to redeliver rather than acknowledging an event that was never processed.
-            $this->logger->warning('Webhook eventRefNum=' . $event->eventRefNum . ' not processed, query failed: ' . $error->getMessage());
+            $this->logger->warning('Webhook txnRefNum=' . $event->txnRefNum . ' not processed, query failed: ' . $error->getMessage());
             return new Response(NotifyAck::Resend->body(), 200, ['Content-Type' => 'application/json']);
         }
 
-        $firstDelivery = $this->activityStore->recordWebhook($event->eventRefNum, [
+        $this->logger->info(sprintf(
+            'Webhook verified eventCode=%s success=%s queried paymentStatus=%s txnRefNum=%s paymentRefNum=%s',
+            $event->eventCode,
+            $event->success ? 'true' : 'false',
+            (string) $payment->paymentStatus,
+            $event->txnRefNum,
+            $event->paymentRefNum,
+        ));
+        if ($payment->paymentStatus !== null) {
+            $this->activityStore->applyPaymentStatus($event->txnRefNum, $payment->paymentStatus);
+        }
+        $this->activityStore->recordWebhook([
             'receivedAt' => (new \DateTimeImmutable())->format(DATE_ATOM),
             'eventCode' => $event->eventCode,
             'paymentStatus' => $payment->paymentStatus,
@@ -60,20 +71,6 @@ final class WebhookController
             'amountMinorUnits' => $event->amount,
             'currencyCode' => $event->currencyCode,
         ]);
-
-        if ($firstDelivery) {
-            $this->logger->info(sprintf(
-                'Webhook verified eventCode=%s success=%s queried paymentStatus=%s txnRefNum=%s paymentRefNum=%s eventRefNum=%s',
-                $event->eventCode,
-                $event->success ? 'true' : 'false',
-                (string) $payment->paymentStatus,
-                $event->txnRefNum,
-                $event->paymentRefNum,
-                $event->eventRefNum,
-            ));
-        } else {
-            $this->logger->info('Duplicate webhook delivery eventRefNum=' . $event->eventRefNum . '; acking without refulfilling');
-        }
 
         return new Response(NotifyAck::Ok->body(), 200, ['Content-Type' => 'application/json']);
     }

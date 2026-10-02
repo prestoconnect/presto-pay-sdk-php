@@ -55,7 +55,7 @@ Reply HTTP 200 with a JSON body:
 
 | Body | Meaning | When to send it |
 |------|---------|-----------------|
-| `NotifyAck::Ok->body()` (`{"resend":false}`) | Handled; don't send it again | You've recorded the event, or had already recorded it earlier |
+| `NotifyAck::Ok->body()` (`{"resend":false}`) | Handled; don't send it again | You've updated the order, or it was already in that status |
 | `NotifyAck::Resend->body()` (`{"resend":true}`) | Send it again later | Your own processing failed, for example the `query` or your database |
 
 Presto retries 1, 2, 5 and 10 minutes after the first attempt, so an event is delivered at most five times over
@@ -68,18 +68,26 @@ Reply quickly. Record the event and reply, and do slow work such as emails or fu
 
 ## Handling redeliveries
 
-The same event can arrive more than once, for example after you ask for a resend. Every delivery of an event
-has the same `eventRefNum`, so:
+The same event can arrive more than once, for example after you ask for a resend, and your return page may
+update the same order first. Guard on the order record rather than on the event:
 
-- record `eventRefNum` under a unique constraint in your database once you've handled the event;
-- skip events you've already recorded, and still reply `NotifyAck::Ok`;
-- record it only after the `query` succeeds, so a failed attempt isn't mistaken for a handled one on
-  redelivery.
+- `query` the payment on every delivery, then apply its status to the order in one conditional update, so
+  that only one caller can finalise it:
 
-The unique constraint, not an `if` in your code or an in-memory set, is what keeps this safe when two deliveries
-arrive at once or your app is redeployed. Record the event and update the order in one transaction, so a
-failure in between can't leave the event recorded but the order unchanged. Keep recorded `eventRefNum`s for at least as long as the redelivery
-schedule (about 18 minutes).
+  ```sql
+  UPDATE orders SET status = ? WHERE txn_ref_num = ? AND status = 'PendingAuthorise'
+  ```
+
+- fulfil only when that update changed a row and the new status is `Authorised`, and dispatch the fulfilment
+  job in the same transaction;
+- once an order is finalised, apply only the statuses that can follow it (`PendingRefund`, `PartialRefunded`,
+  `Refunded`, `PendingReverse`, `Reversed`), never fulfil again, and never let an older status overwrite a
+  newer one;
+- reply `NotifyAck::Ok` whether or not anything changed.
+
+The condition in the `UPDATE`, not an `if` in your code that reads the order first, is what keeps this safe
+when the return page and a webhook arrive at once. A redelivery, a replay, or a webhook that arrives after the
+return page then finds the order already in that status and does nothing.
 
 ## The freshness window
 
@@ -87,8 +95,9 @@ The verifier rejects a webhook whose timestamp is more than 15 minutes from your
 can't be replayed later. Each redelivery carries a fresh timestamp, so redeliveries pass. Keep your server's
 clock in sync with NTP.
 
-To change the window, pass `maxTimestampAge` (in seconds) to `WebhookVerifier`. Widen it only if you
-deduplicate on `eventRefNum`, since that becomes your protection against replays.
+To change the window, pass `maxTimestampAge` (in seconds) to `WebhookVerifier`. Widen it only if your
+order update is guarded as described in [Handling redeliveries](#handling-redeliveries), since that becomes your
+protection against replays.
 
 ## Several merchants, and webhook-only services
 
@@ -103,6 +112,7 @@ keep `PrestoPay` (which needs the private key) out of a webhook-only process or 
 ```php
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use PrestoUniverse\PrestoPay\PaymentStatus;
 use PrestoUniverse\PrestoPay\PrestoPay;
 use PrestoUniverse\PrestoPay\Request\QueryRequest;
 use PrestoUniverse\PrestoPay\Exception\SignatureException;
@@ -132,8 +142,14 @@ class PrestoPayWebhookController
                 paymentRefNum: $event->paymentRefNum,
             ));
             DB::transaction(function () use ($event, $payment) {
-                if (DB::table('webhook_events')->insertOrIgnore(['event_ref_num' => $event->eventRefNum]) > 0) {
-                    // Update the order from $payment->paymentStatus, and dispatch any slow work as a job.
+                $finalised = DB::table('orders')
+                    ->where('txn_ref_num', $event->txnRefNum)
+                    ->where('status', PaymentStatus::PENDING_AUTHORISE)
+                    ->update(['status' => $payment->paymentStatus]);
+                if ($finalised > 0 && $payment->paymentStatus === PaymentStatus::AUTHORISED) {
+                    FulfilOrder::dispatch($event->txnRefNum)->afterCommit();
+                } elseif ($finalised === 0) {
+                    // Apply a later status (refund, reversal) to a paid order; never fulfil again.
                 }
             });
             $ack = NotifyAck::Ok;
@@ -153,6 +169,7 @@ shows the whole setup.
 
 ```php
 use Doctrine\DBAL\Connection;
+use PrestoUniverse\PrestoPay\PaymentStatus;
 use PrestoUniverse\PrestoPay\PrestoPay;
 use PrestoUniverse\PrestoPay\Request\QueryRequest;
 use PrestoUniverse\PrestoPay\Exception\SignatureException;
@@ -187,12 +204,14 @@ final class PrestoPayWebhookController
                 paymentRefNum: $event->paymentRefNum,
             ));
             $this->db->transactional(function (Connection $db) use ($event, $payment): void {
-                $rows = $db->executeStatement(
-                    'INSERT INTO webhook_events (event_ref_num) VALUES (?) ON CONFLICT DO NOTHING',
-                    [$event->eventRefNum],
+                $finalised = $db->executeStatement(
+                    'UPDATE orders SET status = ? WHERE txn_ref_num = ? AND status = ?',
+                    [$payment->paymentStatus, $event->txnRefNum, PaymentStatus::PENDING_AUTHORISE],
                 );
-                if ($rows > 0) {
-                    // Update the order from $payment->paymentStatus.
+                if ($finalised > 0 && $payment->paymentStatus === PaymentStatus::AUTHORISED) {
+                    // Insert the fulfilment job here, in the same transaction.
+                } elseif ($finalised === 0) {
+                    // Apply a later status (refund, reversal) to a paid order; never fulfil again.
                 }
             });
             $ack = NotifyAck::Ok;

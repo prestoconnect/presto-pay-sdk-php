@@ -30,14 +30,17 @@ class ReturnController extends Controller
             'recentWebhooks' => $this->activityStore->recentWebhooks(),
         ];
 
-        // Any status other than PendingAuthorise means Presto has finalised the payment. This page's query
-        // and the /presto/notify webhook are triggered independently by Presto and can arrive in either
-        // order -- this page must not assume the webhook has (or has not) already been processed.
+        // This page's query and the /presto/notify webhook are triggered independently by Presto and can
+        // arrive in either order, so both apply the queried status through the same guarded update and
+        // whichever comes second changes nothing.
         try {
             $data['query'] = $this->presto->payments()->query(new QueryRequest(
                 prestoMrn: (string) config('prestopay.mrn'),
                 txnRefNum: $txnRefNum,
             ));
+            if ($data['query']->paymentStatus !== null) {
+                $this->activityStore->applyPaymentStatus($txnRefNum, $data['query']->paymentStatus);
+            }
         } catch (PrestoPayException $error) {
             $data['queryError'] = $error->getMessage();
         }

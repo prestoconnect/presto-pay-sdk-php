@@ -197,14 +197,17 @@ if ($method === 'GET' && preg_match('#^/return/([^/]+)$#', $path, $matches) === 
         'recentWebhooks' => $app->activityStore->recentWebhooks(),
     ];
 
-    // Any status other than PendingAuthorise means Presto has finalised the payment. This page's query and
-    // the /presto/notify webhook are triggered independently by Presto and can arrive in either order -- this
-    // page must not assume the webhook has (or has not) already been processed.
+    // This page's query and the /presto/notify webhook are triggered independently by Presto and can arrive in
+    // either order, so both apply the queried status through the same guarded update and whichever comes
+    // second changes nothing.
     try {
         $data['query'] = $app->client->payments()->query(new QueryRequest(
             prestoMrn: $app->prestoMrn,
             txnRefNum: $txnRefNum,
         ));
+        if ($data['query']->paymentStatus !== null) {
+            $app->activityStore->applyPaymentStatus($txnRefNum, $data['query']->paymentStatus);
+        }
     } catch (PrestoPayException $error) {
         $data['queryError'] = $error->getMessage();
     }
@@ -281,13 +284,24 @@ if ($method === 'POST' && $path === '/presto/notify') {
     } catch (PrestoPayException $error) {
         // A webhook says what happened, not the payment's resulting status, so the status comes from query. If
         // that fails, ask Presto to redeliver rather than acknowledging an event that was never processed.
-        error_log('Webhook eventRefNum=' . $event->eventRefNum . ' not processed, query failed: ' . $error->getMessage());
+        error_log('Webhook txnRefNum=' . $event->txnRefNum . ' not processed, query failed: ' . $error->getMessage());
         header('Content-Type: application/json; charset=UTF-8');
         echo NotifyAck::Resend->body();
         return;
     }
 
-    $firstDelivery = $app->activityStore->recordWebhook($event->eventRefNum, [
+    error_log(sprintf(
+        'Webhook verified eventCode=%s success=%s queried paymentStatus=%s txnRefNum=%s paymentRefNum=%s',
+        $event->eventCode,
+        $event->success ? 'true' : 'false',
+        (string) $payment->paymentStatus,
+        $event->txnRefNum,
+        $event->paymentRefNum,
+    ));
+    if ($payment->paymentStatus !== null) {
+        $app->activityStore->applyPaymentStatus($event->txnRefNum, $payment->paymentStatus);
+    }
+    $app->activityStore->recordWebhook([
         'receivedAt' => date(DATE_ATOM),
         'eventCode' => $event->eventCode,
         'paymentStatus' => $payment->paymentStatus,
@@ -297,19 +311,6 @@ if ($method === 'POST' && $path === '/presto/notify') {
         'amountMinorUnits' => $event->amount,
         'currencyCode' => $event->currencyCode,
     ]);
-    if ($firstDelivery) {
-        error_log(sprintf(
-            'Webhook verified eventCode=%s success=%s queried paymentStatus=%s txnRefNum=%s paymentRefNum=%s eventRefNum=%s',
-            $event->eventCode,
-            $event->success ? 'true' : 'false',
-            (string) $payment->paymentStatus,
-            $event->txnRefNum,
-            $event->paymentRefNum,
-            $event->eventRefNum,
-        ));
-    } else {
-        error_log('Duplicate webhook delivery eventRefNum=' . $event->eventRefNum . '; acking without refulfilling');
-    }
 
     header('Content-Type: application/json; charset=UTF-8');
     echo NotifyAck::Ok->body();

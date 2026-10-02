@@ -101,8 +101,8 @@ that matters to you. With a PSR-18 client, set its own timeout and turn off its 
       can.
 - [ ] Make `notifyUrl` a public HTTPS URL that Presto can reach.
 - [ ] Have your return page `query` the payment instead of trusting the redirect.
-- [ ] Have your webhook handler verify the raw body, `query` the payment, deduplicate on `eventRefNum` under a
-      unique constraint, return 401 for a `SignatureException`, and reply `NotifyAck::Resend` when your own
+- [ ] Have your webhook handler verify the raw body, `query` the payment, apply its status with a guarded update that
+      finalises an order only once and fulfils only on the change into `Authorised`, return 401 for a `SignatureException`, and reply `NotifyAck::Resend` when your own
       processing fails.
 - [ ] After a timeout or server error, call `init` again with the same `txnRefNum`, and query before retrying
       `reverse` or `refund`, as in

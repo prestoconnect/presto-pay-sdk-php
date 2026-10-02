@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Webhook guidance now guards on the order record instead of deduplicating on `eventRefNum`: the handler
+  queries the payment on every delivery and applies its status with a conditional update that finalises an
+  order only once and fulfils only on the change into `Authorised`. Updated the README, `docs/webhooks.md`
+  (including the Laravel and Symfony handlers), `docs/production.md`, the wire contract, and the plain PHP,
+  Laravel and Symfony samples, whose return page and webhook now share one guarded update.
 - New `docs/payment-methods.md`, linked from the README: every payment method code with its SDK constant,
   a note that Presto enables payment methods per merchant during onboarding, which methods need a Presto
   account (the PrestoPay eWallet and Credits, `Card` and the loyalty programmes), which are legacy
