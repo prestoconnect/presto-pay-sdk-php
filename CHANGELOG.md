@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- New `docs/payment-methods.md`, linked from the README: every payment method code with its SDK constant,
+  a note that Presto enables payment methods per merchant during onboarding, which methods need a Presto
+  account (the PrestoPay eWallet and Credits, `Card` and the loyalty programmes), which are legacy
+  (`TouchNGo`, `BigLife`), and how to pass a code the SDK doesn't list yet.
 - The README is now a getting-started guide: creating your key pair and sending Presto the `.der` public key,
   how a payment flows, a four-step quick start and a payment status table. Reference material moved into
   `docs/` (payments and errors, webhooks with complete Laravel and Symfony handlers, production), and
