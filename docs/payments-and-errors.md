@@ -3,7 +3,7 @@
 This guide covers the four payment operations and how to handle their failures. It assumes you've set up a
 client as in the [quick start](../README.md#quick-start).
 
-- [Look up a payment](#look-up-a-payment)
+- [Query a payment](#query-a-payment)
 - [Reverse a payment](#reverse-a-payment)
 - [Refund a payment](#refund-a-payment)
 - [Errors](#errors)
@@ -14,7 +14,7 @@ Every request needs your `prestoMrn`. Requests are immutable objects that use th
 amounts are integers in minor units (`10_000` is MYR 100.00). A missing or invalid field throws
 `ConfigException` before anything is sent.
 
-## Look up a payment
+## Query a payment
 
 `query` returns a payment's current status and details. Look it up by your `txnRefNum` or by Presto's
 `paymentRefNum`:

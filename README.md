@@ -228,7 +228,7 @@ The gateway can add statuses, so handle an unknown value without failing.
 
 ## Next steps
 
-- [Payments and errors](docs/payments-and-errors.md): look up, reverse and refund payments; handle errors and
+- [Payments and errors](docs/payments-and-errors.md): query, reverse and refund payments; handle errors and
   timeouts safely.
 - [Webhooks](docs/webhooks.md): replies, redelivery, deduplication, and complete Laravel and Symfony handlers.
 - [Production](docs/production.md): configuration, keys, several merchants, custom HTTP clients, the go-live
